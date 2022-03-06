@@ -1,11 +1,12 @@
 (ns calcium-neuron
-  (:require [mops.core :as mops]
-            [mops.records :as mr]
-            [sme-clj.core :as sme]
-            [sme-clj.ruledef :as rules]
-            [sme-clj.typedef :as types]
-            [taoensso.timbre :as log]
-            [ubergraph.core :as uber]))
+  (:require
+   [mops.core       :as mops]
+   [mops.records    :as mr]
+   [sme-clj.core    :as sme]
+   [sme-clj.ruledef :as rules]
+   [sme-clj.typedef :as types]
+   [taoensso.timbre :as log]
+   [ubergraph.core  :as uber]))
 
 (log/set-level! :debug)
 
@@ -57,17 +58,16 @@
                            set
                            (into functors))]
     (-> kg
-        (update
-         :mops
-         (fn [mops]
-           (map-vals (fn [mop]
-                       (->> (dissoc mop :id :inst? :names :functor)
-                            (remove (fn [[_ filler]]
-                                      (some boring-mops
-                                            (cond-> filler
-                                              (not (coll? filler)) vector))))
-                            (into {})))
-                     (apply dissoc mops (into boring-mops concept-graphs)))))
+        (update :mops
+          (fn [mops]
+            (map-vals (fn [mop]
+                        (->> (dissoc mop :id :inst? :names :functor)
+                             (remove (fn [[_ filler]]
+                                       (some boring-mops
+                                             (cond-> filler
+                                               (not (coll? filler)) vector))))
+                             (into {})))
+                      (apply dissoc mops (into boring-mops concept-graphs)))))
         as-graph
         uber/viz-graph)))
 
@@ -89,23 +89,22 @@
          ::types/Expression
          ::types/Expression]
         [:convert ::types/Function nil ::types/Entity ::types/Entity]])
-      (reduce (partial apply types/add-entity)
-              m
-              [[:Calcium ::types/Entity nil]
-               [:Ryanodine-Receptor ::types/Entity nil]
-               [:Voltage-Gated-Channel ::types/Entity nil]
-               [:Acid ::types/Entity nil]
-               [:High-Membrane-Potential ::types/Entity nil]
-               [:Low-Membrane-Potential ::types/Entity nil]
-               [:Sodium ::types/Entity nil]])
-      (apply
-       types/add-concept-graph
+      (reduce
+       (partial apply types/add-entity)
        m
-       :calcium-signaling
-       (let [acr [:activates :Calcium :Ryanodine-Receptor]
-             fcr [:flows :Calcium :Ryanodine-Receptor]]
-         [[:waves acr fcr]
-          [:sparks [:and [:deactivates :Acid :Ryanodine-Receptor] acr] fcr]]))
+       [[:Calcium ::types/Entity nil] [:Ryanodine-Receptor ::types/Entity nil]
+        [:Voltage-Gated-Channel ::types/Entity nil] [:Acid ::types/Entity nil]
+        [:High-Membrane-Potential ::types/Entity nil]
+        [:Low-Membrane-Potential ::types/Entity nil]
+        [:Sodium ::types/Entity nil]])
+      (apply types/add-concept-graph
+             m
+             :calcium-signaling
+             (let [acr [:activates :Calcium :Ryanodine-Receptor]
+                   fcr [:flows :Calcium :Ryanodine-Receptor]]
+               [[:waves acr fcr]
+                [:sparks [:and [:deactivates :Acid :Ryanodine-Receptor] acr]
+                 fcr]]))
       (apply
        types/add-concept-graph
        m
@@ -145,62 +144,56 @@
        ::types/Expression]
       [:convert ::types/Relation nil ::types/Expression ::types/Expression]
       [:implies ::types/Function nil ::types/Expression ::types/Expression]])
-    (reduce (partial apply types/add-entity)
-            m
-            [[:Calcium ::types/Entity nil]
-             [:Calcium-Channel ::types/Entity nil]
-             [:Sodium-Channel ::types/Entity nil]
-             [:Potassium-Channel ::types/Entity nil]
-             [:Acid ::types/Entity nil]
-             [:Membrane-Potential ::types/Entity nil]
-             [:Sodium ::types/Entity nil]
-             [:Potassium ::types/Entity nil]
-             [:Signal ::types/Entity nil]])
-    (apply types/add-concept-graph
-           m
-           :calcium-signaling
-           (let [low-ca    [:low :Calcium]
-                 high-ca   [:high :Calcium]
-                 act-cac   [:active :Calcium-Channel]
-                 inact-cac [:inactive :Calcium-Channel]
-                 flow-cac  [:flow :Calcium :Calcium-Channel]
-                 l2h       [:convert low-ca high-ca]
-                 h2l       [:convert high-ca low-ca]
-                 ca-sparks [:sparks l2h h2l]
-                 ca-waves  [:waves h2l h2l]]
-             [[:cause high-ca [:convert inact-cac act-cac]]
-              [:cause act-cac flow-cac]
-              [:cause flow-cac h2l]
-              [:cause :Acid [:convert ca-waves ca-sparks]]]))
-    (apply types/add-concept-graph
-           m
-           :neuron-signaling
-           (let [low-mp        [:low :Membrane-Potential]
-                 high-mp       [:high :Membrane-Potential]
-                 mid-mp        [:mid :Membrane-Potential]
-                 act-sc        [:active :Sodium-Channel]
-                 inact-sc      [:inactive :Sodium-Channel]
-                 act-kc        [:active :Potassium-Channel]
-                 inact-kc      [:inactive :Potassium-Channel]
-                 flow-sc       [:flow :Sodium :Sodium-Channel]
-                 flow-kc       [:flow :Potassium :Potassium-Channel]
-                 sig           [:signaling :Signal]
-                 l2h           [:convert low-mp high-mp]
-                 h2l           [:convert high-mp low-mp]
-                 neuron-sparks [:sparks l2h h2l]
-                 neuron-waves  [:waves h2l h2l]]
-             [[:cause sig [:convert low-mp mid-mp]]
-              [:cause mid-mp [:convert inact-sc act-sc]]
-              [:cause act-sc flow-sc]
-              [:cause flow-sc [:convert mid-mp high-mp]]
-              [:cause high-mp [:convert act-sc inact-sc]]
-              [:cause high-mp [:convert inact-kc act-kc]]
-              [:cause act-kc flow-kc]
-              [:cause flow-kc h2l]
-              [:cause sig [:convert neuron-waves neuron-sparks]]
-              [:implies
-               [:and [:convert low-mp mid-mp] [:convert mid-mp high-mp]]
-               l2h]]))
+    (reduce
+     (partial apply types/add-entity)
+     m
+     [[:Calcium ::types/Entity nil] [:Calcium-Channel ::types/Entity nil]
+      [:Sodium-Channel ::types/Entity nil]
+      [:Potassium-Channel ::types/Entity nil] [:Acid ::types/Entity nil]
+      [:Membrane-Potential ::types/Entity nil] [:Sodium ::types/Entity nil]
+      [:Potassium ::types/Entity nil] [:Signal ::types/Entity nil]])
+    (apply
+     types/add-concept-graph
+     m
+     :calcium-signaling
+     (let [low-ca    [:low :Calcium]
+           high-ca   [:high :Calcium]
+           act-cac   [:active :Calcium-Channel]
+           inact-cac [:inactive :Calcium-Channel]
+           flow-cac  [:flow :Calcium :Calcium-Channel]
+           l2h       [:convert low-ca high-ca]
+           h2l       [:convert high-ca low-ca]
+           ca-sparks [:sparks l2h h2l]
+           ca-waves  [:waves h2l h2l]]
+       [[:cause high-ca [:convert inact-cac act-cac]] [:cause act-cac flow-cac]
+        [:cause flow-cac h2l] [:cause :Acid [:convert ca-waves ca-sparks]]]))
+    (apply
+     types/add-concept-graph
+     m
+     :neuron-signaling
+     (let [low-mp        [:low :Membrane-Potential]
+           high-mp       [:high :Membrane-Potential]
+           mid-mp        [:mid :Membrane-Potential]
+           act-sc        [:active :Sodium-Channel]
+           inact-sc      [:inactive :Sodium-Channel]
+           act-kc        [:active :Potassium-Channel]
+           inact-kc      [:inactive :Potassium-Channel]
+           flow-sc       [:flow :Sodium :Sodium-Channel]
+           flow-kc       [:flow :Potassium :Potassium-Channel]
+           sig           [:signaling :Signal]
+           l2h           [:convert low-mp high-mp]
+           h2l           [:convert high-mp low-mp]
+           neuron-sparks [:sparks l2h h2l]
+           neuron-waves  [:waves h2l h2l]]
+       [[:cause sig [:convert low-mp mid-mp]]
+        [:cause mid-mp [:convert inact-sc act-sc]] [:cause act-sc flow-sc]
+        [:cause flow-sc [:convert mid-mp high-mp]]
+        [:cause high-mp [:convert act-sc inact-sc]]
+        [:cause high-mp [:convert inact-kc act-kc]] [:cause act-kc flow-kc]
+        [:cause flow-kc h2l] [:cause sig [:convert neuron-waves neuron-sparks]]
+        [:implies
+         [:and [:convert low-mp mid-mp] [:convert mid-mp high-mp]]
+         l2h]]))
     (mops/infer-hierarchy m)))
 
 
@@ -219,7 +212,8 @@
 [:Sodium-Channel :convert-low-Calcium-high-Calcium]
 (def gmaps
   (->> rules/analogy
-       (sme/match kg :neuron-signaling :calcium-signaling)))
+       (sme/match kg
+         :neuron-signaling :calcium-signaling)))
 
 (def inferences
   (->> gmaps

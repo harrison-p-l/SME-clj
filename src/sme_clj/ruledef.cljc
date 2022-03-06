@@ -1,13 +1,12 @@
 (ns sme-clj.ruledef
   "Structure mapping matching rule definitions. Contains both basic literal
    similarity rules and macros for defining new rulesets."
-  (:require [sme-clj.typedef :as types]
-            [sme-clj.util :refer [vals-as-keys]]))
+  (:require
+   [sme-clj.typedef :as types]
+   [sme-clj.util    :refer [vals-as-keys]]))
 
 ;;; Rule definition helpers
 (defn apply-rule [kg {:keys [body]} mh] (body kg mh))
-
-(def rule-types #{:intern :filter})
 
 (defn make-rule
   [id type body]
@@ -57,10 +56,12 @@
      :same-functor
      :filter
      (fn [kg mh]
-       ((every-pred
-         (partial types/same-functor? kg)
-         (partial every? (partial (complement types/attribute-functor?) kg)))
-        mh)))
+       (try
+         ((every-pred
+           (partial types/same-functor? kg)
+           (partial every? (partial (complement types/attribute-functor?) kg)))
+          mh)
+         (catch NullPointerException _ (throw (ex-info "" {:mh mh}))))))
     (make-rule
      :compatible-args
      :intern

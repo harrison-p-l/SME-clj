@@ -1,9 +1,10 @@
 (ns water-heat
-  (:require [mops.records :as mr]
-            [mops.core :as mops]
-            [sme-clj.core :as sme]
-            [sme-clj.typedef :as types]
-            [sme-clj.ruledef :as rules]))
+  (:require
+   [mops.records    :as mr]
+   [mops.core       :as mops]
+   [sme-clj.core    :as sme]
+   [sme-clj.typedef :as types]
+   [sme-clj.ruledef :as rules]))
 
 (def kg
   (-> (reduce
@@ -39,7 +40,8 @@
       mops/infer-hierarchy))
 
 (->> rules/analogy
-     (sme/match kg :simple-water-flow :simple-heat-flow)
+     (sme/match kg
+       :simple-water-flow :simple-heat-flow)
      (sme/perform-inference kg :simple-water-flow)
      (sort-by :score)
      (reverse)

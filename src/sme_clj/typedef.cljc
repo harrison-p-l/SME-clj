@@ -1,7 +1,9 @@
 (ns sme-clj.typedef
   "Data type definitions and protocols for SME, as well as facilities to create
    instances of types and manipulate them."
-  (:require [sme-clj.util :as util :include-macros true]))
+  (:require
+   [sme-clj.util :as util
+                 :include-macros true]))
 
 (defmulti attribute? (comp type first vector))
 
@@ -84,7 +86,8 @@
 
 (defn ordered-functor?
   [kg k]
-  (when-let [functor (expression-functor kg k)] (ordered? kg functor)))
+  (when-let [functor (expression-functor kg k)]
+    (ordered? kg functor)))
 
 (defn same-functor?
   [kg ks]

@@ -32,14 +32,14 @@
 
     [1] Falkenhainer, B., Forbus, K. & Gentner, D. (1989). The structure-mapping
           engine: algorithm and examples. Artificial Intelligence, 41, 1-62."
-  (:require [clojure.math.combinatorics :as comb]
-            [clojure.set :as set]
-            [mops.core :as mops]
-            #?(:clj [mops.records]
-               :cljs [mops.records :refer [MopMap]])
-            [sme-clj.ruledef :as rules]
-            [sme-clj.typedef :as types]
-            [taoensso.timbre :as log])
+  (:require
+   [clojure.math.combinatorics :as comb]
+   [clojure.set     :as set]
+   #?(:clj [mops.records]
+      :cljs [mops.records :refer [MopMap]])
+   [sme-clj.ruledef :as rules]
+   [sme-clj.typedef :as types]
+   [taoensso.timbre :as log])
   (:import #?(:clj mops.records.MopMap)))
 
 ;; Note: "mh" = match hypothesis
@@ -94,10 +94,11 @@
   for the graphs."
   [kg base target rules]
   (log/info "Creating match hypotheses")
-  (->>
-   (for [b (types/expressions kg base) t (types/expressions kg target)] [b t])
-   (apply-filter-rules kg rules)
-   (apply-intern-rules kg rules)))
+  (->> (for [b (types/expressions kg base)
+             t (types/expressions kg target)]
+         [b t])
+       (apply-filter-rules kg rules)
+       (apply-intern-rules kg rules)))
 
 (defn xor [a b] (and (not (and a b)) (or a b)))
 
@@ -145,19 +146,22 @@
     (if stack
       (let [[v & S] stack
             found?  ((set discovered) v)]
-        (recur (cond-> S (not found?) (into (neighbor-fn G v)))
-               (cond-> discovered (not found?) (conj v))))
+        (recur (cond-> S
+                 (not found?) (into (neighbor-fn G v)))
+               (cond-> discovered
+                 (not found?) (conj v))))
       discovered)))
 
-(comment (dfs {:A [:B :C :E]
-               :B [:D :F :A]
-               :C [:A :G]
-               :D [:B]
-               :E [:A :F]
-               :F [:E :B]
-               :G [:C]}
-              :A
-              (fn [G v] (get G v))))
+(comment
+  (dfs {:A [:B :C :E]
+        :B [:D :F :A]
+        :C [:A :G]
+        :D [:B]
+        :E [:A :F]
+        :F [:E :B]
+        :G [:C]}
+       :A
+       (fn [G v] (get G v))))
 (defn all-children
   "Returns a set of all descendants of a root."
   [kg root]
@@ -219,32 +223,33 @@
   (let [checked (atom #{})]
     (log/debug "Start" s)
     (letfn [(f [s]
-               (loop [t (count s)]
-                 (cond (zero? t) nil
-                       (= 1 t)   (map hash-set s)
-                       :else     (let [combs-1 (->> (comb/combinations s t)
-                                                    (map set)
-                                                    (remove @checked))
-                                       combs   (group-by valid? combs-1)]
-                                   (log/debug "Here" combs-1 @checked)
-                                   (swap! checked into combs-1)
-                                   (if-let [valid-combs (seq (get combs true))]
-                                     (->> (get combs false)
-                                          (remove (set/difference @checked
-                                                                  combs-1))
-                                          (mapcat f)
-                                          (concat valid-combs))
-                                     (recur (dec t)))))))]
+              (loop [t (count s)]
+                (cond (zero? t) nil
+                      (= 1 t)   (map hash-set s)
+                      :else     (let [combs-1 (->> (comb/combinations s t)
+                                                   (map set)
+                                                   (remove @checked))
+                                      combs   (group-by valid? combs-1)]
+                                  (log/debug "Here" combs-1 @checked)
+                                  (swap! checked into combs-1)
+                                  (if-let [valid-combs (seq (get combs true))]
+                                    (->> (get combs false)
+                                         (remove (set/difference @checked
+                                                                 combs-1))
+                                         (mapcat f)
+                                         (concat valid-combs))
+                                    (recur (dec t)))))))]
       (f s))))
 
-(comment (maximal-valid-subsets
-          (fn [s]
-            (and (contains? s :a)
-                 (or (not (contains? s :b))
-                     (and (not (contains? s :c)) (not (contains? s :d))))))
-          #{:a :b :c :d :e})
-         ;; => [#{:a :c :d :e} #{:a :b :e}]
-         [])
+(comment
+  (maximal-valid-subsets
+   (fn [s]
+     (and (contains? s :a)
+          (or (not (contains? s :b))
+              (and (not (contains? s :c)) (not (contains? s :d))))))
+   #{:a :b :c :d :e})
+  ;; => [#{:a :c :d :e} #{:a :b :e}]
+  [])
 
 (defn consistent-combs-of-mhs-sets
   "Combine all gmaps in all maximal, consistent ways."
@@ -271,7 +276,9 @@
   single gmap."
   [gmap-sets]
   (log/info "Merging MHS sets")
-  (letfn [(reduce-to-gm [gm-set] (let [args (set (apply concat gm-set))] args))]
+  (letfn [(reduce-to-gm [gm-set]
+            (let [args (set (apply concat gm-set))]
+              args))]
     (let [merged-sets (map reduce-to-gm gmap-sets)]
       (log/trace "Merged sets:" (count merged-sets))
       merged-sets)))
@@ -282,8 +289,8 @@
    equality."
   [a b]
   (letfn [(round [n]
-                 #?(:clj (.setScale (bigdec n) 2 BigDecimal/ROUND_HALF_UP)
-                    :cljs (.toFixed n 2)))]
+            #?(:clj (.setScale (bigdec n) 2 BigDecimal/ROUND_HALF_UP)
+               :cljs (.toFixed n 2)))]
     (and (= (keys a) (keys b))
          (filter true?
                  (map (fn [x y]
@@ -309,12 +316,12 @@
 (defn score-gmap
   "Computes SES and emap scores for a gmap. The emap score is not in the
   original SME. It simply counts how many entities match in their content."
-  [kg mhs gm]
+  [kg gm]
   (letfn [(score-mh [mh depth]
-                    ;; simplified trickle-down SES
-                    (if-let [kids (seq (direct-children kg mh))]
-                      (reduce + depth (map #(score-mh % (inc depth)) kids))
-                      depth))]
+            ;; simplified trickle-down SES
+            (if-let [kids (seq (direct-children kg mh))]
+              (reduce + depth (map #(score-mh % (inc depth)) kids))
+              depth))]
     {:mhs          gm
      :score        (->> gm
                         (find-roots kg)
@@ -374,7 +381,7 @@
              transfer (fn transfer [expr]
                         (or (get pairs expr)
                             (if (types/entity? kg expr)
-                              (throw (ex-info {} "cannot infer entities"))
+                              (throw (ex-info "cannot infer entities" {}))
                               (->> expr
                                    (types/expression-functor kg)
                                    (conj (->> expr
@@ -394,10 +401,10 @@
 (defn finalize-gmaps
   "Computes additional information about the gmaps we have found and stores it
   in the gmaps."
-  [kg base-name target-name mhs gmaps]
+  [kg base-name target-name gmaps]
   (log/info "Finalizing gmaps")
   (->> gmaps
-       (map #(score-gmap kg mhs %)) ; scores
+       (map #(score-gmap kg %)) ; scores
        (map #(assoc %
                     :mapping
                     {:base   base-name
@@ -429,7 +436,7 @@
           (split-into-mhs-sets kg)
           (consistent-combs-of-mhs-sets all-mhs)
           merge-mhs-sets
-          (finalize-gmaps kg base target all-mhs))))
+          (finalize-gmaps kg base target))))
   ([kg base target]
    (match kg
      base target

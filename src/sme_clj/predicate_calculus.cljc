@@ -1,6 +1,7 @@
 (ns sme-clj.predicate-calculus
-  (:require [sme-clj.typedef :as types]
-            [clojure.walk :as walk]))
+  (:require
+   [sme-clj.typedef :as types]
+   [clojure.walk    :as walk]))
 
 (defmethod types/initialize-kg :default [_] {})
 
@@ -44,8 +45,7 @@
 
 (defmethod types/add-predicate :default
   [m
-   [id
-    &
+   [id &
     {:keys [type arity ordered?]
      :or   {type     ::types/Relation
             arity    2
@@ -60,15 +60,15 @@
   [m concept-graph-id & expressions]
   (let [e-map (atom [])]
     (letfn [(add-expr! [[functor & other-args :as args]]
-                       (let [id (types/combine-ids args)]
-                         (swap! e-map conj
-                           (assoc {:id      id
-                                   :type    ::types/Expression
-                                   :functor functor
-                                   :args    other-args}
-                                  :concept-graph
-                                  concept-graph-id))
-                         id))]
+              (let [id (types/combine-ids args)]
+                (swap! e-map conj
+                  (assoc {:id      id
+                          :type    ::types/Expression
+                          :functor functor
+                          :args    other-args}
+                         :concept-graph
+                         concept-graph-id))
+                id))]
       ;; Doseq is used here instead of passing all expressions to postwalk to
       ;; prevent the
       ;; entire set of expressions for the concept graph being counted as an

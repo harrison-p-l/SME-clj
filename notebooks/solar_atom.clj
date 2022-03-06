@@ -1,10 +1,11 @@
 (ns solar-atom
-  (:require [mops.records :as mr]
-            [mops.core :as mops]
-            [sme-clj.core :as sme]
-            [sme-clj.ruledef :as rules]
-            [sme-clj.typedef :as types]
-            [ubergraph.core :as uber]))
+  (:require
+   [mops.records    :as mr]
+   [mops.core       :as mops]
+   [sme-clj.core    :as sme]
+   [sme-clj.ruledef :as rules]
+   [sme-clj.typedef :as types]
+   [ubergraph.core  :as uber]))
 
 (defn map-vals
   [f m]
@@ -24,14 +25,14 @@
         (reduce (fn [g target]
                   (uber/add-directed-edges g [source target {:label role}]))
                 g
-                targets))
+                (keys targets)))
       (uber/add-nodes-with-attrs
        g
        [source
-        {:color (cond (#{#{:solar-system}} concept-graph)    :blue
-                      (#{#{:rutherford-atom}} concept-graph) :red
-                      (nil? concept-graph)                   :black
-                      :else                                  :purple)}])
+        {:color (cond (#{:solar-system} (first (keys concept-graph))) :blue
+                      (#{:rutherford-atom} (first (keys concept-graph))) :red
+                      (nil? concept-graph) :black
+                      :else :purple)}])
       (dissoc mop
               :id
               :inst?         :names
@@ -54,23 +55,26 @@
                            set
                            (into functors))]
     (-> kg
-        (update
-         :mops
-         (fn [mops]
-           (map-vals (fn [mop]
-                       (->> (dissoc mop :id :inst? :names :functor)
-                            (remove (fn [[_ filler]]
-                                      (some boring-mops
-                                            (cond-> filler
-                                              (not (coll? filler)) vector))))
-                            (into {})))
-                     (apply dissoc mops (into boring-mops concept-graphs)))))
+        (update :mops
+          (fn [mops]
+            (map-vals (fn [mop]
+                        (->> (dissoc mop :id :inst? :names :functor)
+                             (remove (fn [[_ filler]]
+                                       (some boring-mops
+                                             (cond-> filler
+                                               (not (coll? filler)) vector))))
+                             (into {})))
+                      (apply dissoc mops (into boring-mops concept-graphs)))))
         as-graph
         uber/viz-graph)))
 
 (def kg
   (as-> (mr/make-mop-map) m
     (types/initialize-kg m)
+    (reduce (partial apply types/add-entity)
+            m
+            [[:Sun ::types/Entity nil] [:Planet ::types/Entity nil]
+             [:Nucleus ::types/Entity nil] [:Electron ::types/Entity nil]])
     (reduce
      (partial apply types/add-entity)
      m
@@ -86,15 +90,9 @@
       [:cause ::types/Relation nil ::types/Expression ::types/Expression]
       [:and
        ::types/Relation
-       {:ordered? false}
+       {:ordered? {false {}}}
        ::types/Expression
        ::types/Expression]])
-    (reduce (partial apply types/add-entity)
-            m
-            [[:Sun ::types/Entity nil]
-             [:Planet ::types/Entity nil]
-             [:Nucleus ::types/Entity nil]
-             [:Electron ::types/Entity nil]])
     (apply types/add-concept-graph
            m
            :solar-system
@@ -120,8 +118,9 @@
 (visualize-analogy kg)
 
 (def gmaps
-  (->> rules/analogy
-       (sme/match kg :solar-system :rutherford-atom)))
+  (sme/match kg
+    :rutherford-atom :solar-system
+    rules/analogy))
 
 (def inferences
   (->> gmaps
