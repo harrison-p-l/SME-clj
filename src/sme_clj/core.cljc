@@ -116,7 +116,6 @@
   ([kg mhs mh]
    (let [emaps   (set (all-emaps kg mhs))
          no-good (set (find-no-good mhs mh))]
-     #_(log/debug "E-maps:" emaps "No-good:" no-good)
      (empty? (set/intersection emaps no-good)))))
 
 (defn direct-children
@@ -222,7 +221,7 @@
 (defn maximal-valid-subsets
   [valid? s]
   (let [checked (atom #{})]
-    (log/debug "Start" s)
+    (log/trace "Start" s)
     (letfn [(f [s]
               (loop [t (count s)]
                 (cond (zero? t) nil
@@ -231,7 +230,7 @@
                                                    (map set)
                                                    (remove @checked))
                                       combs   (group-by valid? combs-1)]
-                                  (log/debug "Here" combs-1 @checked)
+                                  (log/trace "Here" combs-1 @checked)
                                   (swap! checked into combs-1)
                                   (if-let [valid-combs (seq (get combs true))]
                                     (->> (get combs false)
