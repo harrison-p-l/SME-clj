@@ -1,7 +1,10 @@
 (ns sme-clj.simple-water-heat
-  (:require [mops.records :as mr]
-            [mops.core :as mops]
-            [sme-clj.typedef :as types]))
+  (:require
+   [mops.records    :as mr]
+   [mops.core       :as mops]
+   [sme-clj.typedef :as types]
+   [sme-clj.mops]
+   [sme-clj.predicate-calculus]))
 
 (def kg
   (as-> (types/initialize-kg {}) m
