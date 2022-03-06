@@ -162,6 +162,7 @@
         :G [:C]}
        :A
        (fn [G v] (get G v))))
+
 (defn all-children
   "Returns a set of all descendants of a root."
   [kg root]
@@ -249,7 +250,7 @@
               (and (not (contains? s :c)) (not (contains? s :d))))))
    #{:a :b :c :d :e})
   ;; => [#{:a :c :d :e} #{:a :b :e}]
-  [])
+)
 
 (defn consistent-combs-of-mhs-sets
   "Combine all gmaps in all maximal, consistent ways."
@@ -259,9 +260,6 @@
                              vec
                              (maximal-valid-subsets
                               (partial mhs-sets-internally-consistent? all-mhs))
-                             #_#_#_comb/subsets (remove empty?)
-                               (filter (partial mhs-sets-internally-consistent?
-                                                all-mhs))
                              (map set))
         combs-of-sets   (->> consistent-sets
                              (remove (fn [mhs-a]

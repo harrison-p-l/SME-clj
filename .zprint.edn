@@ -1,1 +1,2 @@
-{:fn-map {"with-level" :arg1}}
+{:fn-map {"add-concept-graph" :arg2
+          "with-level"        :arg1}}
