@@ -26,21 +26,26 @@
      :intern
      (fn [kg mh]
        (when (every? (partial types/ordered-functor? kg) mh)
-         (->> mh
-              (map (partial types/expression-args kg))
-              (apply types/extract-common-role-fillers kg)
-              (filter
-               (some-fn (partial every? (partial types/strict-entity? kg))
-                        (partial every?
-                                 (partial types/functor-function? kg))))))))
+         (let [mhs (->> mh
+                        (map (partial types/expression-args kg))
+                        (apply types/extract-common-role-fillers kg))]
+           (->> (for [[base target] mhs
+                      b             base
+                      t             target
+                      :let          [mh [b t]]]
+                  mh)
+                (filter
+                 (some-fn (partial every? (partial types/strict-entity? kg))
+                          (partial every?
+                                   (partial types/functor-function? kg)))))))))
     ;; this rule not tested much yet
     (make-rule
      :commutative-args
      :intern
      (fn [kg [base target :as mh]]
        (when (not-any? (partial types/ordered-functor? kg) mh)
-         (for [base   (types/expression-args kg base)
-               target (types/expression-args kg target)
+         (for [base   (mapcat second (types/expression-args kg base))
+               target (mapcat second (types/expression-args kg target))
                :let   [mh [base target]]
                :when  ((some-fn (partial every?
                                          (partial types/strict-entity? kg))
@@ -67,15 +72,20 @@
      :intern
      (fn [kg mh]
        (when (every? (partial types/ordered-functor? kg) mh)
-         (->> mh
-              (map (partial types/expression-args kg))
-              (apply types/extract-common-role-fillers kg)
-              (filter
-               (some-fn (partial every? (partial types/strict-entity? kg))
-                        (partial every? (partial types/functor-function? kg))
-                        (every-pred
-                         (partial every? (partial types/attribute-functor? kg))
-                         (partial types/same-functor? kg))))))))
+         (let [mhs (->> mh
+                        (map (partial types/expression-args kg))
+                        (apply types/extract-common-role-fillers kg))]
+           (->> (for [[base target] mhs
+                      b             base
+                      t             target
+                      :let          [mh [b t]]]
+                  mh)
+                (filter (some-fn
+                         (partial every? (partial types/strict-entity? kg))
+                         (partial every? (partial types/functor-function? kg))
+                         (every-pred
+                          (partial every? (partial types/attribute-functor? kg))
+                          (partial types/same-functor? kg)))))))))
     ;; this rule not tested much yet
     (make-rule
      :commutative-args

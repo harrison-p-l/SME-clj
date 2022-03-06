@@ -25,8 +25,7 @@
       (->> mop
            mops/roles
            (remove #{:concept-graph :functor :parents})
-           (map (juxt (comp first (partial mops/slot mop))
-                      (comp first (partial mops/filler-value mop))))))))
+           (map (juxt identity (partial mops/filler-value mop)))))))
 
 (defmethod types/expression-functor MopMap
   [kg k]

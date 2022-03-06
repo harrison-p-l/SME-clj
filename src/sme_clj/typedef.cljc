@@ -25,14 +25,16 @@
   [kg base-set expr]
   (and (expression? kg expr)
        (or (contains? base-set expr)
-           (some #(ancestor? kg base-set %)
-                 (map second (expression-args kg expr))))))
+           (->> expr
+                (expression-args kg)
+                (mapcat second)
+                (some #(ancestor? kg base-set %))))))
 
 (defn get-descendants
   "Returns the seq of descendants of the given expression."
   [kg expr]
   (tree-seq (partial expression? kg)
-            (comp (partial map second) (partial expression-args kg))
+            (comp (partial mapcat second) (partial expression-args kg))
             expr))
 
 (defn- pretty-demunge

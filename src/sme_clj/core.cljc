@@ -124,7 +124,7 @@
   (->> mh
        (map #(->> %
                   (types/expression-args kg)
-                  (map second)))
+                  (mapcat second)))
        (apply map vector)
        set))
 
@@ -386,7 +386,7 @@
                                    (types/expression-functor kg)
                                    (conj (->> expr
                                               (types/expression-args kg)
-                                              (map second)
+                                              (mapcat second)
                                               (map transfer)))))))]
          (assoc gmap :transferred (set (map transfer inferences))))
        (catch #?(:cljs :default

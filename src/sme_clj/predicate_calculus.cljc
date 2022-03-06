@@ -22,7 +22,7 @@
 (defmethod types/expression-args :default
   [kg k]
   (when (types/expression? kg k)
-    (map (partial vector :arg) (lookup kg k :args))))
+    (map (comp (partial vector :arg) list) (lookup kg k :args))))
 
 (defmethod types/expression-functor :default
   [kg k]
