@@ -35,26 +35,6 @@
                                         :simple-heat-flow
                                         rules/literal-similarity))))))
 
-(deftest find-children-test
-  (log/with-level :warn
-   (let [expected-found-children1 #{}
-         expected-found-children2 #{[:Beaker :Coffee] [:Water :Heat]
-                                    [:Pipe :Bar] [:Vial :Icecube]}]
-     (testing "Predicate calculus"
-      (is (= expected-found-children1
-             (set (sut/direct-children kg [:Beaker :Coffee]))))
-      (is (= expected-found-children2
-             (set (sut/direct-children kg
-                                       [:flow-Beaker-Vial-Water-Pipe
-                                        :flow-Coffee-Icecube-Heat-Bar])))))
-     (testing "Mops"
-      (is (= expected-found-children1
-             (set (sut/direct-children mops-kg [:Beaker :Coffee]))))
-      (is (= expected-found-children2
-             (set (sut/direct-children mops-kg
-                                       [:flow-Beaker-Vial-Water-Pipe
-                                        :flow-Coffee-Icecube-Heat-Bar]))))))))
-
 (def expected-found-roots
   #{[:flow-Beaker-Vial-Water-Pipe :flow-Coffee-Icecube-Heat-Bar]
     [:greater-diameter-Beaker-diameter-Vial

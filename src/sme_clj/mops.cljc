@@ -100,3 +100,19 @@
                          first
                          #(mops/filler-value % :concept-graph)))
            (map (comp :id meta)))))
+
+(defmethod types/direct-children MopMap
+  [kg mh]
+  (->> mh
+       (map #(->> %
+                  (types/expression-args kg)
+                  #_(mapcat second)))
+       (apply concat)
+       (group-by first)
+       (mapcat (fn [[group args]]
+                 (let [[base target] (map second args)]
+                   (for [b base
+                         t target]
+                     [b t]))))
+       #_(apply map vector)
+       set))

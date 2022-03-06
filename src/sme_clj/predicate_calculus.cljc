@@ -100,3 +100,12 @@
        vals
        (filter (comp (partial = concept-graph-name) :concept-graph))
        (map :id)))
+
+(defmethod types/direct-children :default
+  [kg mh]
+  (->> mh
+       (map #(->> %
+                  (types/expression-args kg)
+                  (mapcat second)))
+       (apply map vector)
+       set))

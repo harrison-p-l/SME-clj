@@ -105,7 +105,11 @@
 (defn find-no-good
   "nogood is every mh mapping same target or base"
   [mhs root]
-  (filter (fn [mh] (apply xor (map = root mh))) mhs))
+  (->> mhs
+       (filter (fn [mh]
+                 (->> root
+                      (conj mhs)
+                      (some #(apply xor (map = % mh))))))))
 
 (defn all-emaps [kg mhs] (remove (partial types/expression? kg) mhs))
 
@@ -118,21 +122,12 @@
          no-good (set (find-no-good mhs mh))]
      (empty? (set/intersection emaps no-good)))))
 
-(defn direct-children
-  [kg mh]
-  (->> mh
-       (map #(->> %
-                  (types/expression-args kg)
-                  (mapcat second)))
-       (apply map vector)
-       set))
-
 (defn find-roots
   "Returns only the root hypotheses, ie. those that are not children of any
   other hypothesis."
   [kg mhs]
   (remove (->> mhs
-               (mapcat (partial direct-children kg))
+               (mapcat (partial types/direct-children kg))
                set)
           mhs))
 
@@ -165,7 +160,7 @@
 (defn all-children
   "Returns a set of all descendants of a root."
   [kg root]
-  (set (dfs kg root direct-children)))
+  (set (dfs kg root types/direct-children)))
 
 (defn split-into-mhs-sets
   "Given match hypothesis information, builds a set of initial gmaps. Returns a
@@ -179,17 +174,23 @@
                                   (log/trace "Children:" root children)
                                   (if (consistent? kg children root)
                                     (conj mhs-sets children)
-                                    (->> root
-                                         (direct-children kg)
-                                         (mapcat #(form-mhs-set #{} %))
-                                         set
-                                         (set/union mhs-sets)))))
+                                    (-> root
+                                        (->> (types/direct-children kg)
+                                             (mapcat #(form-mhs-set #{} %))
+                                             (map #(conj % root)))
+                                        set
+                                        (set/union mhs-sets)))))
                               #{})
                       vec)]
     (log/trace "MHS sets:" (count mhs-sets) (frequencies (map count mhs-sets)))
     mhs-sets))
 
-(defn all-no-good [all-mhs mhs] (mapcat (partial find-no-good all-mhs) mhs))
+(defn all-no-good
+  [all-mhs mhs]
+  (mapcat (fn [root]
+            (->> all-mhs
+                 (filter (fn [mh] (apply xor (map = root mh))))))
+   mhs))
 
 (defn mhs-sets-consistent?
   "Two gmaps are consistent if none of their elements are in the NoGood set of
@@ -316,7 +317,7 @@
   [kg gm]
   (letfn [(score-mh [mh depth]
             ;; simplified trickle-down SES
-            (if-let [kids (seq (direct-children kg mh))]
+            (if-let [kids (seq (types/direct-children kg mh))]
               (reduce + depth (map #(score-mh % (inc depth)) kids))
               depth))]
     {:mhs          gm

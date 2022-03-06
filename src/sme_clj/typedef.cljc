@@ -76,6 +76,8 @@
         (comp (juxt (comp keyword (partial str "e") inc first) second) vector))
        (into {})))
 
+(defmulti direct-children (comp type first vector))
+
 (defmulti add-entity (comp type first vector))
 
 (defmulti add-predicate (comp type first vector))
