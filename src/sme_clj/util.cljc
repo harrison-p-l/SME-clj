@@ -1,4 +1,8 @@
-(ns sme-clj.util "Utility/helper functions")
+(ns sme-clj.util
+  "Utility/helper functions"
+  (:require
+   [datascript.core :as d]
+   [mops.core       :as mops]))
 
 (defn vals-as-keys [k m] (zipmap (map k m) m))
 
@@ -18,3 +22,13 @@
     `(let [~g ~expr
            ~@(interleave (repeat g) (butlast steps))]
        ~(if (empty? steps) g (last steps)))))
+
+(defn standardize-mops
+  [conn concept-graph]
+  (->> [:mops/id concept-graph]
+       (d/q '{:find  [[?id ...]]
+              :in    [$ ?c]
+              :where [[?x :mops/id ?id] [?x :concept-graph ?c]]}
+            @conn)
+       (map (juxt identity (partial mops/get-mop conn)))
+       (into {})))
