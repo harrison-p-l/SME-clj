@@ -8,19 +8,21 @@
 
 (def kg
   (as-> (types/initialize-kg {}) m
-    (reduce (partial apply types/add-entity)
-            m
-            [[:Coffee] [:Icecube] [:Bar] [:Heat] [:Water] [:Beaker] [:Vial]
-             [:Pipe]])
     (reduce
-     (fn [m args] (types/add-predicate m args))
+     (partial apply types/add-entity)
      m
-     [[:flow :type ::types/Relation :arity 4]
-      [:greater :type ::types/Relation :arity 2]
-      [:cause :type ::types/Relation :arity 2]
-      [:temperature :type ::types/Function] [:flat-top :type ::types/Function]
-      [:pressure :type ::types/Function] [:diameter :type ::types/Function]
-      [:liquid :type ::types/Attribute] [:clear :type ::types/Attribute]])
+     [[:Coffee] [:Icecube] [:Bar] [:Heat] [:Water] [:Beaker] [:Vial] [:Pipe]])
+    (reduce (fn [m args] (types/add-predicate m args))
+            m
+            [[:flow :pc/type :sme/Relation :sme/arity 4]
+             [:greater :pc/type :sme/Relation :sme/arity 2]
+             [:cause :pc/type :sme/Relation :sme/arity 2]
+             [:temperature :pc/type :sme/Function]
+             [:flat-top :pc/type :sme/Function]
+             [:pressure :pc/type :sme/Function]
+             [:diameter :pc/type :sme/Function]
+             [:liquid :pc/type :sme/Attribute]
+             [:clear :pc/type :sme/Attribute]])
     (-> m
         (types/add-concept-graph :simple-water-flow
           [:cause
@@ -69,7 +71,8 @@
         [:liquid :Water])
       (types/add-concept-graph :simple-heat-flow
         [:flow :Coffee :Icecube :Heat :Bar]
-        [:greater [:temperature :Coffee]
+        [:greater
+         [:temperature :Coffee]
          [:temperature :Icecube]]
         [:flat-top :Coffee]
         [:liquid :Coffee])

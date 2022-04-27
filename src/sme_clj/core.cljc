@@ -35,12 +35,10 @@
   (:require
    [clojure.math.combinatorics :as comb]
    [clojure.set     :as set]
-   #?(:clj [mops.records]
-      :cljs [mops.records :refer [MopMap]])
+   #?(:clj [mops.records])
    [sme-clj.ruledef :as rules]
    [sme-clj.typedef :as types]
-   [taoensso.timbre :as log])
-  (:import #?(:clj mops.records.MopMap)))
+   [taoensso.timbre :as log]))
 
 ;; Note: "mh" = match hypothesis
 

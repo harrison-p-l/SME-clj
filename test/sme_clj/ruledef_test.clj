@@ -1,9 +1,9 @@
 (ns sme-clj.ruledef-test
-  (:require [clojure.test :refer [testing deftest is]]
-            [sme-clj.ruledef :as sut]
-            [sme-clj.simple-water-heat :refer [kg mops-kg]]
-            [taoensso.timbre :as log]
-            [sme-clj.typedef :as types]))
+  (:require
+   [clojure.test    :refer [testing deftest is]]
+   [sme-clj.ruledef :as sut]
+   [sme-clj.simple-water-heat :refer [kg mops-kg ds-kg]]
+   [taoensso.timbre :as log]))
 
 (def expected-same-functor-matches
   #{[:diameter-Vial :diameter-Vial] [:diameter-Vial :diameter-Beaker]
@@ -66,9 +66,10 @@
 (def expected-commutative-args #{})
 
 (deftest literal-similarity-test
-  (log/with-level
-   :warn
-   (let [mhs              (for [b (keys kg) t (keys kg)] [b t])
+  (log/with-level :warn
+   (let [mhs              (for [b (keys kg)
+                                t (keys kg)]
+                            [b t])
          wrapped-rule     (fn [rules rule-id kg mhs]
                             (->> mhs
                                  (mapcat (partial sut/apply-rule
@@ -134,9 +135,10 @@
     [:flow-Coffee-Icecube-Heat-Bar :flow-Coffee-Icecube-Heat-Bar]})
 
 (deftest analogy-test
-  (log/with-level
-   :warn
-   (let [mhs              (for [b (keys kg) t (keys kg)] [b t])
+  (log/with-level :warn
+   (let [mhs              (for [b (keys kg)
+                                t (keys kg)]
+                            [b t])
          wrapped-rule     (fn [rules rule-id kg mhs]
                             (->> mhs
                                  (mapcat (partial sut/apply-rule

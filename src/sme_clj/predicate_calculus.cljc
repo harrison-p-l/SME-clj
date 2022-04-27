@@ -9,51 +9,46 @@
 
 (defmethod types/attribute? :default
   [kg k]
-  ((comp (partial = ::types/Attribute) #(lookup kg % :type)) k))
+  ((comp (partial = :sme/Attribute) #(lookup kg % :pc/type)) k))
 
 (defmethod types/entity? :default
   [kg k]
-  ((comp (partial = ::types/Entity) #(lookup kg % :type)) k))
+  ((comp (partial = :sme/Entity) #(lookup kg % :pc/type)) k))
 
 (defmethod types/expression? :default
   [kg k]
-  ((comp (partial = ::types/Expression) #(lookup kg % :type)) k))
+  ((comp (partial = :sme/Expression) #(lookup kg % :pc/type)) k))
 
 (defmethod types/expression-args :default
   [kg k]
   (when (types/expression? kg k)
-    (map (comp (partial vector :arg) list) (lookup kg k :args))))
+    (map (comp (partial vector :pc/arg) list) (lookup kg k :pc/args))))
 
 (defmethod types/expression-functor :default
   [kg k]
-  (when (types/expression? kg k) (lookup kg k :functor)))
+  (when (types/expression? kg k) (lookup kg k :sme/functor)))
 
 (defmethod types/type-function? :default
   [kg k]
-  (= ::types/Function (lookup kg k :type)))
+  (= :sme/Function (lookup kg k :pc/type)))
 
-(defmethod types/ordered? :default [kg k] (lookup kg k :ordered?))
+(defmethod types/ordered? :default [kg k] (lookup kg k :sme/ordered?))
 
 (defmethod types/add-entity :default
   [m id & slots]
-  (let [{:keys [id]
-         :as   e}
-        {:id    id
-         :type  ::types/Entity
-         :slots slots}]
+  (let [e {:pc/id    id
+           :pc/type  :sme/Entity
+           :pc/slots slots}]
     (assoc m id e)))
 
 (defmethod types/add-predicate :default
-  [m
-   [id &
-    {:keys [type arity ordered?]
-     :or   {type     ::types/Relation
-            arity    2
-            ordered? true}}]]
-  (let [p {:id       id
-           :type     type
-           :arity    (if (= type ::types/Relation) arity 1)
-           :ordered? ordered?}]
+  [m [id & {:as p}]]
+  (let [p (merge {:pc/id        id
+                  :pc/type      :sme/Relation
+                  :sme/arity    2
+                  :sme/ordered? true}
+                 p
+                 (when-not (= (:pc/type p) :sme/Relation) {:sme/arity 1}))]
     (assoc m id p)))
 
 (defmethod types/add-concept-graph :default
@@ -62,11 +57,11 @@
     (letfn [(add-expr! [[functor & other-args :as args]]
               (let [id (types/combine-ids args)]
                 (swap! e-map conj
-                  (assoc {:id      id
-                          :type    ::types/Expression
-                          :functor functor
-                          :args    other-args}
-                         :concept-graph
+                  (assoc {:pc/id       id
+                          :pc/type     :sme/Expression
+                          :sme/functor functor
+                          :pc/args     other-args}
+                         :sme/concept-graph
                          concept-graph-id))
                 id))]
       ;; Doseq is used here instead of passing all expressions to postwalk to
@@ -77,16 +72,16 @@
         (walk/postwalk #(cond->> % (coll? %) add-expr!) expression))
       (as-> m m
         (reduce (fn [m
-                     {:keys [id]
-                      :as   e}]
+                     {:pc/keys [id]
+                      :as      e}]
                   (assoc m id e))
                 m
                 @e-map)
         (assoc m
                concept-graph-id
-               {:id   concept-graph-id
-                :type ::types/ConceptGraph
-                :spec expressions})))))
+               {:pc/id   concept-graph-id
+                :pc/type :sme/ConceptGraph
+                :pc/spec expressions})))))
 
 (defmethod types/extract-common-role-fillers :default
   [_ & ms]
@@ -98,8 +93,8 @@
   [kg concept-graph-name]
   (->> kg
        vals
-       (filter (comp (partial = concept-graph-name) :concept-graph))
-       (map :id)))
+       (filter (comp (partial = concept-graph-name) :sme/concept-graph))
+       (map :pc/id)))
 
 (defmethod types/direct-children :default
   [kg mh]

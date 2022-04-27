@@ -28,7 +28,7 @@
   (->> [:mops/id concept-graph]
        (d/q '{:find  [[?id ...]]
               :in    [$ ?c]
-              :where [[?x :mops/id ?id] [?x :concept-graph ?c]]}
+              :where [[?x :mops/id ?id] [?x :sme/concept-graph ?c]]}
             @conn)
        (map (juxt identity (partial mops/get-mop conn)))
        (into {})))

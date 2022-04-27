@@ -10,13 +10,11 @@
    [clojure.set     :as set])
   (:import #?(:clj [mops.records MopMap])))
 
-(defmethod types/attribute? MopMap [kg k] (mops/abstr? kg k ::types/Attribute))
+(defmethod types/attribute? MopMap [kg k] (mops/abstr? kg k :sme/Attribute))
 
-(defmethod types/entity? MopMap [kg k] (mops/abstr? kg k ::types/Entity))
+(defmethod types/entity? MopMap [kg k] (mops/abstr? kg k :sme/Entity))
 
-(defmethod types/expression? MopMap
-  [kg k]
-  (mops/abstr? kg k ::types/Expression))
+(defmethod types/expression? MopMap [kg k] (mops/abstr? kg k :sme/Expression))
 
 (defmethod types/expression-args MopMap
   [kg k]
@@ -24,21 +22,19 @@
     (let [mop (mops/get-mop kg k)]
       (->> mop
            mops/roles
-           (remove #{:concept-graph :functor :parents})
+           (remove #{:sme/concept-graph :sme/functor :mops/parents})
            (map (juxt identity (partial mops/filler-value mop)))))))
 
 (defmethod types/expression-functor MopMap
   [kg k]
   (let [mop (mops/get-mop kg k)]
-    (first (mops/filler-value mop :functor))))
+    (first (mops/filler-value mop :sme/functor))))
 
-(defmethod types/type-function? MopMap
-  [kg k]
-  (mops/abstr? kg k ::types/Function))
+(defmethod types/type-function? MopMap [kg k] (mops/abstr? kg k :sme/Function))
 
 (defmethod types/ordered? MopMap
   [kg k]
-  (when (mops/get-mop kg k) (mops/inherit-filler kg k :ordered?)))
+  (when (mops/get-mop kg k) (mops/inherit-filler kg k :sme/ordered?)))
 
 (defmethod types/add-entity MopMap
   [m id parent slots & args]
@@ -47,7 +43,7 @@
                                        (-> args
                                            types/args->slots
                                            (merge slots)))
-                           :parents
+                           :mops/parents
                            parent)]
     (mops/add-mop m mop)))
 
@@ -61,26 +57,27 @@
            (swap! e-map mops/add-mop
              (-> id
                  (mops/->mop {} (types/args->slots function-args))
-                 (mops/add-slot :parents ::types/Expression)
-                 (mops/add-slot :functor functor)
-                 (mops/add-slot :concept-graph concept-graph-id)))
+                 (mops/add-slot :mops/parents :sme/Expression)
+                 (mops/add-slot :sme/functor functor)
+                 (mops/add-slot :sme/concept-graph concept-graph-id)))
            id))]
       (doseq [expression expressions]
         (walk/postwalk #(cond->> % (coll? %) add-expr!) expression))
       (mops/add-mop @e-map
                     (-> concept-graph-id
                         (mops/->mop {} {})
-                        (mops/add-slot :parents ::types/ConceptGraph))))))
+                        (mops/add-slot :mops/parents :sme/ConceptGraph))))))
 
 (defmethod types/initialize-kg MopMap
   [m]
   (reduce (partial apply types/add-entity)
           m
-          [[::types/Expression :thing nil] [::types/Entity :thing nil]
-           [::types/Functor ::types/Expression nil]
-           [::types/Relation ::types/Functor {:ordered? true}]
-           [::types/Attribute ::types/Functor nil]
-           [::types/Function ::types/Functor nil]]))
+          [[:sme/Expression :thing nil]
+           [:sme/Entity :thing nil]
+           [:sme/Functor :sme/Expression nil]
+           [:sme/Relation :sme/Functor {:sme/ordered? true}]
+           [:sme/Attribute :sme/Functor nil]
+           [:sme/Function :sme/Functor nil]]))
 
 (defmethod types/extract-common-role-fillers MopMap
   [_ & ms]
@@ -98,21 +95,18 @@
       (map (mops/mop-ids kg))
       (->> (filter (comp #{concept-graph-name}
                          first
-                         #(mops/filler-value % :concept-graph)))
-           (map (comp :id meta)))))
+                         #(mops/filler-value % :sme/concept-graph)))
+           (map (comp :mops/id meta)))))
 
 (defmethod types/direct-children MopMap
   [kg mh]
   (->> mh
-       (map #(->> %
-                  (types/expression-args kg)
-                  #_(mapcat second)))
+       (map (partial types/expression-args kg))
        (apply concat)
        (group-by first)
-       (mapcat (fn [[group args]]
+       (mapcat (fn [[_ args]]
                  (let [[base target] (map second args)]
                    (for [b base
                          t target]
                      [b t]))))
-       #_(apply map vector)
        set))

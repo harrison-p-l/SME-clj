@@ -34,9 +34,9 @@
                       (nil? concept-graph) :black
                       :else :purple)}])
       (dissoc mop
-              :id
-              :inst?         :names
-              :concept-graph (when-not include-abstrs? :parents))))
+              :mops/id
+              :mops/inst?        :mops/names
+              :sme/concept-graph (when-not include-abstrs? :mops/parents))))
    (uber/multidigraph)
    (:mops m)))
 
@@ -44,10 +44,10 @@
   [kg]
   (let [functors       (->> kg
                             mops/mop-ids
-                            (filter #(mops/abstr? kg % ::types/Functor)))
+                            (filter #(mops/abstr? kg % :sme/Functor)))
         concept-graphs (->> kg
                             mops/mop-ids
-                            (filter #(mops/abstr? kg % ::types/ConceptGraph)))
+                            (filter #(mops/abstr? kg % :sme/ConceptGraph)))
         boring-mops    (-> (mr/make-mop-map)
                            types/initialize-kg
                            :mops
@@ -57,14 +57,15 @@
     (-> kg
         (update :mops
           (fn [mops]
-            (map-vals (fn [mop]
-                        (->> (dissoc mop :id :inst? :names :functor)
-                             (remove (fn [[_ filler]]
-                                       (some boring-mops
-                                             (cond-> filler
-                                               (not (coll? filler)) vector))))
-                             (into {})))
-                      (apply dissoc mops (into boring-mops concept-graphs)))))
+            (map-vals
+             (fn [mop]
+               (->> (dissoc mop :mops/id :mops/inst? :mops/names :sme/functor)
+                    (remove (fn [[_ filler]]
+                              (some boring-mops
+                                    (cond-> filler
+                                      (not (coll? filler)) vector))))
+                    (into {})))
+             (apply dissoc mops (into boring-mops concept-graphs)))))
         as-graph
         uber/viz-graph)))
 
@@ -73,26 +74,27 @@
     (types/initialize-kg m)
     (reduce (partial apply types/add-entity)
             m
-            [[:Sun ::types/Entity nil] [:Planet ::types/Entity nil]
-             [:Nucleus ::types/Entity nil] [:Electron ::types/Entity nil]])
-    (reduce
-     (partial apply types/add-entity)
-     m
-     [[:mass ::types/Function nil ::types/Entity]
-      [:charge ::types/Function nil ::types/Entity]
-      [:attracts ::types/Function nil ::types/Entity ::types/Entity]
-      [:revolve-around ::types/Function nil ::types/Entity ::types/Entity]
-      [:temperature ::types/Function nil ::types/Entity]
-      [:gravity ::types/Function nil ::types/Expression ::types/Expression]
-      [:opposite-sign ::types/Function nil ::types/Expression
-       ::types/Expression]
-      [:greater ::types/Relation nil ::types/Entity ::types/Entity]
-      [:cause ::types/Relation nil ::types/Expression ::types/Expression]
-      [:and
-       ::types/Relation
-       {:ordered? {false {}}}
-       ::types/Expression
-       ::types/Expression]])
+            [[:Sun :sme/Entity nil]
+             [:Planet :sme/Entity nil]
+             [:Nucleus :sme/Entity nil]
+             [:Electron :sme/Entity nil]])
+    (reduce (partial apply types/add-entity)
+            m
+            [[:mass :sme/Function nil :sme/Entity]
+             [:charge :sme/Function nil :sme/Entity]
+             [:attracts :sme/Function nil :sme/Entity :sme/Entity]
+             [:revolve-around :sme/Function nil :sme/Entity :sme/Entity]
+             [:temperature :sme/Function nil :sme/Entity]
+             [:gravity :sme/Function nil :sme/Expression :sme/Expression]
+             [:opposite-sign :sme/Function nil :sme/Expression
+              :sme/Expression]
+             [:greater :sme/Relation nil :sme/Entity :sme/Entity]
+             [:cause :sme/Relation nil :sme/Expression :sme/Expression]
+             [:and
+              :sme/Relation
+              {:sme/ordered? {false {}}}
+              :sme/Expression
+              :sme/Expression]])
     (apply types/add-concept-graph
            m
            :solar-system

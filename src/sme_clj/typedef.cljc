@@ -101,7 +101,7 @@
 
 (defn strict-entity?
   [kg k]
-  ((every-pred (partial entity? kg) (complement #{::Entity})) k))
+  ((every-pred (partial entity? kg) (complement #{:sme/Entity})) k))
 
 (defn functor-function?
   [kg k]
