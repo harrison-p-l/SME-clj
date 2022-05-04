@@ -2,38 +2,82 @@
   "Data type definitions and protocols for SME, as well as facilities to create
    instances of types and manipulate them."
   (:require
-   [clojure.walk    :as walk]
-   [mops.core       :as mops]
-   [sme-clj.typedef :as types]
-   [clojure.set     :as set]
-   [datascript.core :as d])
+   [clojure.walk         :as walk]
+   [mops.core            :as mops]
+   [sme-clj.typedef      :as types]
+   [clojure.set          :as set]
+   [datascript.core      :as d]
+   [mops.datascript-mops :as ds-mops]
+   #?(:cljs [sme-clj.util :as util]))
   (:import #?(:clj [clojure.lang Atom])))
 
-(defmethod types/attribute? Atom [kg k] (mops/abstr? kg k :sme/Attribute))
+(def ds-rules
+  (into
+   ds-mops/abstr-rules
+   '[[(p? ?e ?p) (parent? ?e :mops/parents ?p)]
+     [(functor-p? ?e ?p) [?e :sme/functor ?f] (p? ?f ?p)]
+     [(same-functor? ?b-filler ?t-filler)
+      [?b-filler :sme/functor ?filler-functor]
+      [?t-filler :sme/functor ?filler-functor]]
+     #_[(ordered-functor? ?e)
+        [?e :sme/functor ?functor]
+        (or-join
+         [?functor]
+         [?functor :sme/ordered? true]
+         (and
+          (not [?functor :sme/ordered? false])
+          (parent-filler? ?functor :mops/parents ?p :sme/ordered? true)))]]))
 
-(defmethod types/entity? Atom [kg k] (mops/abstr? kg k :sme/Entity))
+(defn structural-role? [role] (not (#{"mops" "sme"} (namespace role))))
 
-(defmethod types/expression? Atom [kg k] (mops/abstr? kg k :sme/Expression))
+(defn id->mop-id [conn id] (:mops/id (d/pull @conn [:mops/id] id)))
+
+(defmethod types/attribute? Atom
+  [conn k]
+  (mops/abstr? conn (id->mop-id conn k) :sme/Attribute))
+
+(defmethod types/entity? Atom
+  [conn k]
+  (mops/abstr? conn (id->mop-id conn k) :sme/Entity))
+
+(defmethod types/expression? Atom
+  [conn k]
+  (mops/abstr? conn (id->mop-id conn k) :sme/Expression))
 
 (defmethod types/expression-args Atom
   [conn k]
-  (when (types/expression? conn k)
-    (let [mop (mops/get-mop conn k)]
-      (->> mop
-           mops/roles
-           (remove #{:sme/concept-graph :sme/functor :mops/parents})
-           (map (juxt identity
-                      (comp (partial map
-                                     (comp :mops/id
-                                           (partial d/pull @conn [:mops/id])
-                                           :db/id))
-                            (partial mops/filler-value mop))))))))
+  (-> ds-rules
+      (->> (d/q '{:find  [?role ?filler]
+                  :in    [$ ?e ?arg? %]
+                  :where [(p? ?e [:mops/id :sme/Expression])
+                          [?e ?role ?filler]
+                          [(?arg? ?role)]]}
+                @conn
+                k
+                structural-role?)
+           (group-by first))
+      (#?(:clj update-vals
+          :cljs util/cljs-update-vals)
+       (partial map second)))
+  #_(when (types/expression? conn k)
+      (let [mop (mops/get-mop conn k)]
+        (->> mop
+             mops/roles
+             (remove #{:sme/concept-graph :sme/functor :mops/parents})
+             (map (juxt identity
+                        (comp #_(partial map
+                                         (comp :mops/id
+                                               (partial d/pull @conn [:mops/id])
+                                               :db/id))
+                              (partial mops/filler-value mop))))))))
 
 (defmethod types/expression-functor Atom
   [conn k]
-  (let [mop (mops/get-mop conn k)]
-    (when-let [id (:db/id (first (mops/filler-value mop :sme/functor)))]
-      (:mops/id (d/pull @conn [:mops/id] id)))))
+  (d/q '{:find  [?f .]
+         :in    [$ ?e]
+         :where [[?e :sme/functor ?f]]}
+       @conn
+       k))
 
 (defmethod types/type-function? Atom [kg k] (mops/abstr? kg k :sme/Function))
 
@@ -94,21 +138,28 @@
 
 (defmethod types/expressions Atom
   [conn concept-graph-name]
-  (->> (d/q '{:find  [[(pull ?e [:mops/id]) ...]]
-              :in    [$ ?concept-graph]
-              :where [[?e :sme/concept-graph ?concept-graph]]}
-            @conn
-            [:mops/id concept-graph-name])
-       (map :mops/id)))
+  (d/q '{:find  [[?e ...]]
+         :in    [$ ?concept-graph]
+         :where [[?e :sme/concept-graph ?concept-graph]]}
+       @conn
+       [:mops/id concept-graph-name]))
 
 (defmethod types/direct-children Atom
   [conn [b t]]
   (->>
-   (d/q '{:find  [(pull ?b-filler [:mops/id]) (pull ?t-filler [:mops/id])]
+   (d/q '{:find  [?b-filler ?t-filler]
           :in    [$ ?b ?t ?arg?]
           :where [[?b ?role ?b-filler] [?t ?role ?t-filler] [(?arg? ?role)]]}
         @conn
-        [:mops/id b]
-        [:mops/id t]
-        (fn [role] (not (#{"mops" "sme"} (namespace role)))))
-   (map (partial map :mops/id))))
+        b
+        t
+        (fn [role] (not (#{"mops" "sme"} (namespace role)))))))
+
+(defmethod types/same-functor? Atom
+  [conn [b t]]
+  (d/q '{:find  [?b ?t]
+         :in    [$ ?b ?t]
+         :where [[?b :sme/functor ?f] [?t :sme/functor ?f]]}
+       @conn
+       b
+       t))

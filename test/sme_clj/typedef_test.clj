@@ -372,8 +372,10 @@
 (deftest find-children-test
   (log/with-level :warn
    (let [expected-found-children1 #{}
-         expected-found-children2 #{[:Beaker :Coffee] [:Water :Heat]
-                                    [:Pipe :Bar] [:Vial :Icecube]}]
+         expected-found-children2 #{[:Beaker :Coffee]
+                                    [:Water :Heat]
+                                    [:Pipe :Bar]
+                                    [:Vial :Icecube]}]
      (testing "Predicate calculus"
       (is (= expected-found-children1
              (set (sut/direct-children kg [:Beaker :Coffee]))))

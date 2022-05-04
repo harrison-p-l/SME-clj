@@ -109,7 +109,9 @@
                       (conj mhs)
                       (some #(apply xor (map = % mh))))))))
 
-(defn all-emaps [kg mhs] (remove (partial types/expression? kg) mhs))
+(defn all-emaps
+  [kg mhs]
+  (remove (partial every? (partial types/expression? kg)) mhs))
 
 ;; The below proves useful when checking consistency and such.
 
@@ -377,7 +379,9 @@
              transfer (fn transfer [expr]
                         (or (get pairs expr)
                             (if (types/entity? kg expr)
-                              (throw (ex-info "cannot infer entities" {}))
+                              (throw (ex-info "cannot infer entities"
+                                              {:expr  expr
+                                               :pairs pairs}))
                               (->> expr
                                    (types/expression-functor kg)
                                    (conj (->> expr

@@ -1,8 +1,9 @@
 (ns sme-clj.util
   "Utility/helper functions"
   (:require
-   [datascript.core :as d]
-   [mops.core       :as mops]
+   [clojure.walk         :as walk]
+   [datascript.core      :as d]
+   [mops.core            :as mops]
    [mops.datascript-mops :as ds-mops]))
 
 (defn vals-as-keys [k m] (zipmap (map k m) m))
@@ -33,8 +34,7 @@
                        (->> :mops/parents
                             (mops/filler-value mop)
                             (map (comp :mops/id
-                                       (partial d/pull @conn '[:mops/id])
-                                       :db/id))))))]
+                                       (partial d/pull @conn '[:mops/id])))))))]
     (->> (d/q '{:find  [[?id ...]]
                 :in    [$ ?c]
                 :where [[?x :mops/id ?id] [?x :sme/concept-graph ?c]]}
@@ -42,3 +42,31 @@
               [:mops/id concept-graph])
          (map (juxt identity (comp realize-mop (partial mops/get-mop conn))))
          (into {}))))
+
+(defn mhs->labels
+  [conn mhs]
+  (->> mhs
+       (map (partial map (comp :mops/id (partial d/pull @conn [:mops/id]))))
+       set))
+
+(defn mhs->ids
+  [conn mhs]
+  (->> mhs
+       (map (partial map
+                     (comp (partial d/entid @conn) (partial vector :mops/id))))
+       set))
+
+(defn inferences->labels
+  [conn inferences]
+  (walk/postwalk (fn [x]
+                   (cond-pred-> x
+                                integer?
+                                (->> (d/pull @conn [:mops/id])
+                                     :mops/id)))
+                 inferences))
+
+(defn cljs-update-vals
+  [m f]
+  (->> m
+       (map (juxt key (comp f val)))
+       (into {})))

@@ -1,9 +1,11 @@
 (ns sme-clj.ruledef-test
   (:require
-   [clojure.test    :refer [deftest is testing]]
-   [sme-clj.ruledef :as sut]
+   [clojure.test              :refer [deftest is testing]]
+   [sme-clj.util              :as util]
+   [sme-clj.ruledef           :as sut]
    [sme-clj.simple-water-heat :refer [ds-kg kg mops-kg]]
-   [taoensso.timbre :as log]))
+   [taoensso.timbre           :as log]
+   [datascript.core           :as d]))
 
 (def expected-same-functor-matches
   #{[:diameter-Vial :diameter-Vial]
@@ -128,7 +130,10 @@
               (wrapped-rule-lit :same-functor mops-kg mhs))))
       (testing "Datascript"
        (is (= expected-same-functor-matches
-              (wrapped-rule-lit :same-functor ds-kg mhs)))))
+              (->> mhs
+                   (util/mhs->ids ds-kg)
+                   (wrapped-rule-lit :same-functor ds-kg)
+                   (util/mhs->labels ds-kg))))))
      (testing "Compatible args"
       (testing "Predicate calculus"
        (is (= expected-compatible-args-matches
@@ -138,7 +143,10 @@
               (wrapped-rule-lit :compatible-args mops-kg mhs))))
       (testing "Datascript"
        (is (= expected-compatible-args-matches
-              (wrapped-rule-lit :compatible-args ds-kg mhs)))))
+              (->> mhs
+                   (util/mhs->ids ds-kg)
+                   (wrapped-rule-lit :compatible-args ds-kg)
+                   (util/mhs->labels ds-kg))))))
      #_(testing "Commutative args"
         (testing "Predicate calculus"
          (is (= expected-commutative-args
@@ -188,6 +196,17 @@
     [:flow-Coffee-Icecube-Heat-Bar :flow-Beaker-Vial-Water-Pipe]
     [:flow-Coffee-Icecube-Heat-Bar :flow-Coffee-Icecube-Heat-Bar]})
 
+(let [kg    ds-kg
+      [b t] (->> [:pressure-Beaker
+                  :Beaker]
+                 (map (comp (partial d/entid @kg) (partial vector :mops/id))))]
+  (seq (d/q '{:find  [?f]
+              :in    [$ ?b ?t]
+              :where [[?b :sme/functor ?f] [?t :sme/functor ?f]]}
+            @kg
+            b
+            t)))
+
 (deftest analogy-test
   (log/with-level :warn
    (let [mhs              (for [b (keys kg)
@@ -210,7 +229,10 @@
               (wrapped-rule-ana :same-functor mops-kg mhs))))
       (testing "Datascript"
        (is (= expected-analogy-same-functor-matches
-              (wrapped-rule-ana :same-functor ds-kg mhs)))))
+              (->> mhs
+                   (util/mhs->ids ds-kg)
+                   (wrapped-rule-ana :same-functor ds-kg)
+                   (util/mhs->labels ds-kg))))))
      (testing "Compatible args"
       (testing "Predicate calculus"
        (is (= expected-compatible-args-matches
@@ -220,7 +242,10 @@
               (wrapped-rule-ana :compatible-args mops-kg mhs))))
       (testing "Datascript"
        (is (= expected-compatible-args-matches
-              (wrapped-rule-ana :compatible-args ds-kg mhs)))))
+              (->> mhs
+                   (util/mhs->ids ds-kg)
+                   (wrapped-rule-ana :compatible-args ds-kg)
+                   (util/mhs->labels ds-kg))))))
      #_(testing "Commutative args"
         (testing "Predicate calculus"
          (is (= expected-commutative-args

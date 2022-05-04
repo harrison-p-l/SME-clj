@@ -1,10 +1,12 @@
 (ns sme-clj.core-test
   (:require
-   [clojure.test    :refer [testing deftest is]]
-   [sme-clj.core    :as sut]
-   [sme-clj.ruledef :as rules]
+   [clojure.test              :refer [testing deftest is]]
+   [sme-clj.core              :as sut]
+   [sme-clj.ruledef           :as rules]
    [sme-clj.simple-water-heat :refer [kg mops-kg ds-kg]]
-   [taoensso.timbre :as log]))
+   [taoensso.timbre           :as log]
+   [sme-clj.util              :as util]
+   [datascript.core           :as d]))
 
 (def expected-match-hypotheses
   #{[:Water :Heat]
@@ -41,10 +43,11 @@
                                         rules/literal-similarity))))
    (testing "Datascript"
     (is (= expected-match-hypotheses
-           (sut/create-match-hypotheses ds-kg
-                                        :simple-water-flow
-                                        :simple-heat-flow
-                                        rules/literal-similarity))))))
+           (->> (sut/create-match-hypotheses ds-kg
+                                             :simple-water-flow
+                                             :simple-heat-flow
+                                             rules/literal-similarity)
+                (util/mhs->labels ds-kg)))))))
 
 (def expected-found-roots
   #{[:flow-Beaker-Vial-Water-Pipe :flow-Coffee-Icecube-Heat-Bar]
@@ -65,7 +68,11 @@
            (set (sut/find-roots mops-kg expected-match-hypotheses)))))
    (testing "Datascript"
     (is (= expected-found-roots
-           (set (sut/find-roots ds-kg expected-match-hypotheses)))))))
+           (->> expected-match-hypotheses
+                (util/mhs->ids ds-kg)
+                (sut/find-roots ds-kg)
+                (util/mhs->labels ds-kg)
+                set))))))
 
 (def diameter-gmap
   #{[:greater-diameter-Beaker-diameter-Vial
@@ -104,8 +111,12 @@
     (is (= expected-computed-initial-gmaps
            (sut/split-into-mhs-sets mops-kg expected-match-hypotheses))))
    (testing "Datascript"
-    (is (= expected-computed-initial-gmaps
-           (sut/split-into-mhs-sets ds-kg expected-match-hypotheses))))))
+    (is (= (set expected-computed-initial-gmaps)
+           (->> expected-match-hypotheses
+                (util/mhs->ids ds-kg)
+                (sut/split-into-mhs-sets ds-kg)
+                (map (partial util/mhs->labels ds-kg))
+                set))))))
 
 (def expected-combined-gmaps
   [[pressure-gmap flow-gmap]
@@ -181,10 +192,10 @@
                                expected-merged-gmaps))))
    (testing "Datascript"
     (is (= expected-finalized-gmaps
-           (sut/finalize-gmaps ds-kg
-                               :simple-water-flow
-                               :simple-heat-flow
-                               expected-merged-gmaps))))))
+           (->> expected-merged-gmaps
+                (map (partial util/mhs->ids ds-kg))
+                (sut/finalize-gmaps ds-kg :simple-water-flow :simple-heat-flow)
+                (map #(update % :mhs (partial util/mhs->labels ds-kg)))))))))
 
 (def expected-generated-inferences
   [#{:cause-greater-pressure-Beaker-pressure-Vial-flow-Beaker-Vial-Water-Pipe}
@@ -194,21 +205,28 @@
 
 (deftest generate-inferences-test
   (log/with-level :warn
-   (testing "Predicate calculus"
-    (is (= expected-generated-inferences
-           (->> expected-finalized-gmaps
-                (sut/generate-inferences kg)
-                (map :inferences)))))
-   (testing "Mops"
-    (is (= expected-generated-inferences
-           (->> expected-finalized-gmaps
-                (sut/generate-inferences mops-kg)
-                (map :inferences)))))
+   #_(types/ancestor? ds-kg
+                      #{}
+                      (d/entid @ds-kg [:mops/id :flow-Beaker-Vial-Water-Pipe]))
+   #_(testing "Predicate calculus"
+      (is (= expected-generated-inferences
+             (->> expected-finalized-gmaps
+                  (sut/generate-inferences kg)
+                  (map :inferences)))))
+   #_(testing "Mops"
+      (is (= expected-generated-inferences
+             (->> expected-finalized-gmaps
+                  (sut/generate-inferences mops-kg)
+                  (map :inferences)))))
    (testing "Datascript"
-    (is (= expected-generated-inferences
+    (is (= (set expected-generated-inferences)
            (->> expected-finalized-gmaps
+                (map #(update % :mhs (partial util/mhs->ids ds-kg)))
                 (sut/generate-inferences ds-kg)
-                (map :inferences)))))))
+                (map :inferences)
+                (util/mhs->labels ds-kg)
+                (map set)
+                set))))))
 
 (def expected-transferred-inferences
   [#{[:cause :greater-temperature-Coffee-temperature-Icecube
@@ -221,26 +239,40 @@
       :flow-Coffee-Icecube-Heat-Bar]}
    #{}])
 
+(defn gmaps-mhs->ids
+  [conn gmaps]
+  (map
+   #(update % :mhs
+      (partial
+       map
+       (partial mapv (comp (partial d/entid @conn) (partial vector :mops/id)))))
+   gmaps))
+
 (deftest transfer-inferences-test
   (log/with-level :warn
-   (testing "Predicate calculus"
-    (is (= expected-transferred-inferences
-           (->> expected-generated-inferences
-                (map #(assoc %1 :inferences %2) expected-finalized-gmaps)
-                (sut/transfer-inferences kg)
-                (map :transferred)))))
-   (testing "Mops"
-    (is (= expected-transferred-inferences
-           (->> expected-generated-inferences
-                (map #(assoc %1 :inferences %2) expected-finalized-gmaps)
-                (sut/transfer-inferences mops-kg)
-                (map :transferred)))))
+   #_(testing "Predicate calculus"
+      (is (= expected-transferred-inferences
+             (->> expected-generated-inferences
+                  (map #(assoc %1 :inferences %2) expected-finalized-gmaps)
+                  (sut/transfer-inferences kg)
+                  (map :transferred)))))
+   #_(testing "Mops"
+      (is (= expected-transferred-inferences
+             (->> expected-generated-inferences
+                  (map #(assoc %1 :inferences %2) expected-finalized-gmaps)
+                  (sut/transfer-inferences mops-kg)
+                  (map :transferred)))))
    (testing "Datascript"
     (is (= expected-transferred-inferences
            (->> expected-generated-inferences
-                (map #(assoc %1 :inferences %2) expected-finalized-gmaps)
+                (map (partial map
+                              (comp (partial d/entid @ds-kg)
+                                    (partial vector :mops/id))))
+                (map #(assoc %1 :inferences %2)
+                     (gmaps-mhs->ids ds-kg expected-finalized-gmaps))
                 (sut/transfer-inferences ds-kg)
-                (map :transferred)))))))
+                (map :transferred)
+                (util/inferences->labels ds-kg)))))))
 
 (deftest perform-inference-test
   (log/with-level :warn
@@ -257,8 +289,14 @@
    (testing "Datascript"
     (is (= expected-transferred-inferences
            (->> expected-finalized-gmaps
+                (map #(update % :mhs
+                        (partial map
+                                 (partial mapv
+                                          (comp (partial d/entid @ds-kg)
+                                                (partial vector :mops/id))))))
                 (sut/perform-inference ds-kg)
-                (map :transferred)))))))
+                (map :transferred)
+                (util/inferences->labels ds-kg)))))))
 
 (deftest match-test
   (log/with-level :warn
@@ -275,8 +313,10 @@
            (sut/match mops-kg
              :simple-water-flow :simple-heat-flow))))
    (testing "Datascript"
-    (is (= expected-finalized-gmaps
-           (sut/match ds-kg
-             :simple-water-flow :simple-heat-flow))))))
+    (is (= (set expected-finalized-gmaps)
+           (-> ds-kg
+               (sut/match :simple-water-flow :simple-heat-flow)
+               (->> (map #(update % :mhs (partial util/mhs->labels ds-kg)))
+                    set)))))))
 
 ; LocalWords:  gmaps

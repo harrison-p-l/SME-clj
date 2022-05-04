@@ -104,3 +104,9 @@
                   (mapcat second)))
        (apply map vector)
        set))
+
+(defmethod types/same-functor? :default
+  [kg ks]
+  (->> ks
+       (map (partial types/expression-functor kg))
+       ((every-pred (partial every? some?) (partial apply =)))))

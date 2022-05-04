@@ -113,3 +113,9 @@
                          t target]
                      [b t]))))
        set))
+
+(defmethod types/same-functor? MopMap
+  [kg ks]
+  (->> ks
+       (map (partial types/expression-functor kg))
+       ((every-pred (partial every? some?) (partial apply =)))))

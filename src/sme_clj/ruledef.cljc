@@ -2,11 +2,12 @@
   "Structure mapping matching rule definitions. Contains both basic literal
    similarity rules and macros for defining new rulesets."
   (:require
-   [sme-clj.typedef      :as types]
-   [sme-clj.util         :refer [vals-as-keys]]
-   [datascript.core      :as d]
-   [mops.datascript-mops :as ds-mops])
-  (:import [clojure.lang Atom]))
+   [datascript.core         :as d]
+   [sme-clj.datascript-mops :as ds]
+   [sme-clj.ruledef         :as rules]
+   [sme-clj.typedef         :as types]
+   [sme-clj.util            :refer [vals-as-keys]])
+  (:import (clojure.lang Atom)))
 
 ;;; Rule definition helpers
 (defn apply-rule [kg {:keys [body]} mh] (body kg mh))
@@ -22,58 +23,47 @@
 (defn ds-compatible-args
   [conn [b t]]
   (->>
+   ds/ds-rules
    (d/q
-    '{:find [(pull ?b-filler [:mops/id]) (pull ?t-filler [:mops/id])]
-      :in [$ ?b ?t ?arg? ?Entity ?Function %]
-      :where
-      [(parent? ?b :mops/parents [:mops/id :sme/Expression])
-       [?b :sme/functor ?b-functor]
-       (parent? ?t :mops/parents [:mops/id :sme/Expression])
-       [?t :sme/functor ?t-functor]
-       #_(or-join
-          [?b-functor]
-          [?b-functor :sme/ordered? true]
-          #_(and
-             (not [?b-functor :sme/ordered? false])
-             (parent-filler? ?b-functor :mops/parents ?b-p :sme/ordered? true)))
-       #_(or-join
-          [?t-functor]
-          [?t-functor :sme/ordered? true]
-          (and
-           (not [?t-functor :sme/ordered? false])
-           (parent-filler? ?t-functor :mops/parents ?t-p :sme/ordered? true)))
-       [?b ?role ?b-filler]
-       [?t ?role ?t-filler]
-       [(?arg? ?role)]
-       (or-join
-        [?b-filler ?t-filler ?Entity ?Function]
-        (every-entity? ?b-filler ?t-filler ?Entity)
-        (every-functor-function? ?b-filler ?t-filler ?Function))]}
+    '{:find  [?b-filler ?t-filler]
+      :in    [$ ?b ?t ?arg? %]
+      :where [(p? ?b [:mops/id :sme/Expression])
+              (p? ?t [:mops/id :sme/Expression])
+              #_(ordered-functor? ?b)
+              #_(ordered-functor? ?t)
+              [?b ?role ?b-filler]
+              [?t ?role ?t-filler]
+              [(?arg? ?role)]
+              (or-join
+               [?b-filler ?t-filler]
+               (and
+                (p? ?b-filler [:mops/id :sme/Entity])
+                (p? ?t-filler [:mops/id :sme/Entity]))
+               (and
+                (functor-p? ?b-filler [:mops/id :sme/Function])
+                (functor-p? ?t-filler [:mops/id :sme/Function])))]}
     @conn
-    [:mops/id b]
-    [:mops/id t]
-    (fn [role] (not (#{"mops" "sme"} (namespace role))))
-    (d/entid @conn [:mops/id :sme/Entity])
-    (d/entid @conn [:mops/id :sme/Function])
-    (into
-     ds-mops/abstr-rules
-     '[[(every-entity? ?x ?y ?Entity)
-        (and
-         (parent? ?x :mops/parents ?Entity)
-         (parent? ?y :mops/parents ?Entity))]
-       [(every-functor-function? ?b-filler ?t-filler ?Function)
-        (and
-         [?b-filler :sme/functor ?b-filler-functor]
-         (parent? ?b-filler-functor :mops/parents ?Function)
-         [?t-filler :sme/functor ?t-filler-functor]
-         (parent? ?t-filler-functor :mops/parents ?Function))]]))
-   (map (partial map :mops/id))))
+    b
+    t
+    ds/structural-role?)))
 
 ;; As in SME, basic analogical matching rules, direct port
 (def literal-similarity
   (vals-as-keys
    :id
-   [(make-rule :same-functor :filter types/same-functor?)
+   [(make-rule
+     :same-functor
+     :filter
+     (fn [kg [b t :as mh]]
+       (if (instance? Atom kg)
+         (->> (d/q '{:find  [?f]
+                     :in    [$ ?b ?t]
+                     :where [[?b :sme/functor ?f] [?t :sme/functor ?f]]}
+                   @kg
+                   b
+                   t)
+              seq)
+         (types/same-functor? kg mh))))
     (make-rule
      :compatible-args
      :intern
@@ -116,60 +106,33 @@
 (defn ds-analogy-compatible-args
   [conn [b t]]
   (->>
+   ds/ds-rules
    (d/q
-    '{:find [(pull ?b-filler [:mops/id])
-             (pull ?t-filler [:mops/id])
-             #_(pull ?ff [:mops/id])]
-      :in [$ ?b ?t ?arg? ?Entity ?Function ?Attribute %]
-      :where
-      [(parent? ?b :mops/parents [:mops/id :sme/Expression])
-       [?b :sme/functor ?b-functor]
-       (parent? ?t :mops/parents [:mops/id :sme/Expression])
-       [?t :sme/functor ?t-functor]
-       #_(or-join
-          [?b-functor]
-          [?b-functor :sme/ordered? true]
-          #_(and
-             (not [?b-functor :sme/ordered? false])
-             (parent-filler? ?b-functor :mops/parents ?b-p :sme/ordered? true)))
-       #_(or-join
-          [?t-functor]
-          [?t-functor :sme/ordered? true]
-          (and
-           (not [?t-functor :sme/ordered? false])
-           (parent-filler? ?t-functor :mops/parents ?t-p :sme/ordered? true)))
-       [?b ?role ?b-filler]
-       [?t ?role ?t-filler]
-       [(?arg? ?role)]
-       (or-join
-        [?b-filler ?t-filler ?Entity ?Function ?Attribute]
-        (every-entity? ?b-filler ?t-filler ?Entity)
-        (every-functor-function? ?b-filler ?t-filler ?Function)
-        (every-same-attribute-functor? ?b-filler ?t-filler ?Attribute))]}
+    '{:find  [?b-filler ?t-filler]
+      :in    [$ ?b ?t ?arg? %]
+      :where [(parent? ?b :mops/parents [:mops/id :sme/Expression])
+              (parent? ?t :mops/parents [:mops/id :sme/Expression])
+              #_(ordered-functor? ?b)
+              #_(ordered-functor? ?t)
+              [?b ?role ?b-filler]
+              [?t ?role ?t-filler]
+              [(?arg? ?role)]
+              (or-join
+               [?b-filler ?t-filler]
+               (and
+                (parent? ?b-filler :mops/parents [:mops/id :sme/Entity])
+                (parent? ?t-filler :mops/parents [:mops/id :sme/Entity]))
+               (and
+                (functor-p? ?b-filler [:mops/id :sme/Function])
+                (functor-p? ?t-filler [:mops/id :sme/Function]))
+               (and
+                (functor-p? ?b-filler [:mops/id :sme/Attribute])
+                (functor-p? ?t-filler [:mops/id :sme/Attribute])
+                (same-functor? ?b-filler ?t-filler)))]}
     @conn
-    [:mops/id b]
-    [:mops/id t]
-    (fn [role] (not (#{"mops" "sme"} (namespace role))))
-    (d/entid @conn [:mops/id :sme/Entity])
-    (d/entid @conn [:mops/id :sme/Function])
-    (d/entid @conn [:mops/id :sme/Attribute])
-    (into
-     ds-mops/abstr-rules
-     '[[(every-entity? ?x ?y ?Entity)
-        (and
-         (parent? ?x :mops/parents ?Entity)
-         (parent? ?y :mops/parents ?Entity))]
-       [(every-functor-function? ?b-filler ?t-filler ?Function)
-        (and
-         [?b-filler :sme/functor ?b-filler-functor]
-         (parent? ?b-filler-functor :mops/parents ?Function)
-         [?t-filler :sme/functor ?t-filler-functor]
-         (parent? ?t-filler-functor :mops/parents ?Function))]
-       [(every-same-attribute-functor? ?b-filler ?t-filler ?Attribute)
-        [?b-filler :sme/functor ?filler-functor]
-        [?t-filler :sme/functor ?filler-functor]
-        (parent? ?filler-functor :mops/parents ?Attribute)]]))
-   (map (partial map :mops/id))))
+    b
+    t
+    ds/structural-role?)))
 
 (def analogy
   (vals-as-keys
@@ -177,13 +140,24 @@
    [(make-rule
      :same-functor
      :filter
-     (fn [kg mh]
-       (try
-         ((every-pred
-           (partial types/same-functor? kg)
-           (partial every? (partial (complement types/attribute-functor?) kg)))
-          mh)
-         (catch NullPointerException _ (throw (ex-info "" {:mh mh}))))))
+     (fn [kg [b t :as mh]]
+       (if (instance? Atom kg)
+         (->> ds/ds-rules
+              (d/q '{:find  [?f]
+                     :in    [$ ?b ?t %]
+                     :where [[?b :sme/functor ?f]
+                             [?t :sme/functor ?f]
+                             (not (p? ?f [:mops/id :sme/Attribute]))]}
+                   @kg
+                   b
+                   t)
+              seq)
+         (try ((every-pred (partial types/same-functor? kg)
+                           (partial
+                            every?
+                            (partial (complement types/attribute-functor?) kg)))
+               mh)
+              (catch NullPointerException _ (throw (ex-info "" {:mh mh})))))))
     (make-rule
      :compatible-args
      :intern

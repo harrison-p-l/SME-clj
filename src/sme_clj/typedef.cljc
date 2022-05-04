@@ -93,11 +93,8 @@
   (when-let [functor (expression-functor kg k)]
     (ordered? kg functor)))
 
-(defn same-functor?
-  [kg ks]
-  (->> ks
-       (map (partial expression-functor kg))
-       ((every-pred (partial every? some?) (partial apply =)))))
+
+(defmulti same-functor? (comp type first vector))
 
 (defn strict-entity?
   [kg k]
