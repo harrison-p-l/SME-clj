@@ -16,13 +16,18 @@
 (defmethod types/expression? Atom [kg k] (mops/abstr? kg k :sme/Expression))
 
 (defmethod types/expression-args Atom
-  [kg k]
-  (when (types/expression? kg k)
-    (let [mop (mops/get-mop kg k)]
+  [conn k]
+  (when (types/expression? conn k)
+    (let [mop (mops/get-mop conn k)]
       (->> mop
            mops/roles
            (remove #{:sme/concept-graph :sme/functor :mops/parents})
-           (map (juxt identity (partial mops/filler-value mop)))))))
+           (map (juxt identity
+                      (comp (partial map
+                                     (comp :mops/id
+                                           (partial d/pull @conn [:mops/id])
+                                           :db/id))
+                            (partial mops/filler-value mop))))))))
 
 (defmethod types/expression-functor Atom
   [conn k]
@@ -88,24 +93,22 @@
     (map (apply juxt ms) common-roles)))
 
 (defmethod types/expressions Atom
-  [kg concept-graph-name]
-  (-> kg
-      :mops
-      (map (mops/mop-ids kg))
-      (->> (filter (comp #{concept-graph-name}
-                         first
-                         #(mops/filler-value % :sme/concept-graph)))
-           (map (comp :mops/id meta)))))
+  [conn concept-graph-name]
+  (->> (d/q '{:find  [[(pull ?e [:mops/id]) ...]]
+              :in    [$ ?concept-graph]
+              :where [[?e :sme/concept-graph ?concept-graph]]}
+            @conn
+            [:mops/id concept-graph-name])
+       (map :mops/id)))
 
 (defmethod types/direct-children Atom
-  [kg mh]
-  (->> mh
-       (map (partial types/expression-args kg))
-       (apply concat)
-       (group-by first)
-       (mapcat (fn [[_ args]]
-                 (let [[base target] (map second args)]
-                   (for [b base
-                         t target]
-                     [b t]))))
-       set))
+  [conn [b t]]
+  (->>
+   (d/q '{:find  [(pull ?b-filler [:mops/id]) (pull ?t-filler [:mops/id])]
+          :in    [$ ?b ?t ?arg?]
+          :where [[?b ?role ?b-filler] [?t ?role ?t-filler] [(?arg? ?role)]]}
+        @conn
+        [:mops/id b]
+        [:mops/id t]
+        (fn [role] (not (#{"mops" "sme"} (namespace role)))))
+   (map (partial map :mops/id))))

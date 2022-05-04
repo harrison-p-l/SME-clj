@@ -105,8 +105,7 @@
 (defmethod types/direct-children MopMap
   [kg mh]
   (->> mh
-       (map (partial types/expression-args kg))
-       (apply concat)
+       (mapcat (partial types/expression-args kg))
        (group-by first)
        (mapcat (fn [[_ args]]
                  (let [[base target] (map second args)]

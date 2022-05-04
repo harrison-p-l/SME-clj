@@ -3,20 +3,26 @@
    [clojure.test    :refer [testing deftest is]]
    [sme-clj.core    :as sut]
    [sme-clj.ruledef :as rules]
-   [sme-clj.simple-water-heat :refer [kg mops-kg]]
+   [sme-clj.simple-water-heat :refer [kg mops-kg ds-kg]]
    [taoensso.timbre :as log]))
 
 (def expected-match-hypotheses
-  #{[:Water :Heat] [:Water :Coffee] [:flat-top-Water :flat-top-Coffee]
+  #{[:Water :Heat]
+    [:Water :Coffee]
+    [:flat-top-Water :flat-top-Coffee]
     [:liquid-Water :liquid-Coffee]
     [:greater-diameter-Beaker-diameter-Vial
      :greater-temperature-Coffee-temperature-Icecube]
-    [:diameter-Beaker :temperature-Coffee] [:diameter-Vial :temperature-Icecube]
+    [:diameter-Beaker :temperature-Coffee]
+    [:diameter-Vial :temperature-Icecube]
     [:flow-Beaker-Vial-Water-Pipe :flow-Coffee-Icecube-Heat-Bar]
     [:greater-pressure-Beaker-pressure-Vial
-     :greater-temperature-Coffee-temperature-Icecube] [:Beaker :Coffee]
-    [:Pipe :Bar] [:pressure-Beaker :temperature-Coffee]
-    [:pressure-Vial :temperature-Icecube] [:Vial :Icecube]})
+     :greater-temperature-Coffee-temperature-Icecube]
+    [:Beaker :Coffee]
+    [:Pipe :Bar]
+    [:pressure-Beaker :temperature-Coffee]
+    [:pressure-Vial :temperature-Icecube]
+    [:Vial :Icecube]})
 
 (deftest create-match-hypotheses-test
   (log/with-level :warn
@@ -32,6 +38,12 @@
            (sut/create-match-hypotheses mops-kg
                                         :simple-water-flow
                                         :simple-heat-flow
+                                        rules/literal-similarity))))
+   (testing "Datascript"
+    (is (= expected-match-hypotheses
+           (sut/create-match-hypotheses ds-kg
+                                        :simple-water-flow
+                                        :simple-heat-flow
                                         rules/literal-similarity))))))
 
 (def expected-found-roots
@@ -40,7 +52,8 @@
      :greater-temperature-Coffee-temperature-Icecube]
     [:greater-pressure-Beaker-pressure-Vial
      :greater-temperature-Coffee-temperature-Icecube]
-    [:liquid-Water :liquid-Coffee] [:flat-top-Water :flat-top-Coffee]})
+    [:liquid-Water :liquid-Coffee]
+    [:flat-top-Water :flat-top-Coffee]})
 
 (deftest find-roots-test
   (log/with-level :warn
@@ -49,22 +62,30 @@
            (set (sut/find-roots kg expected-match-hypotheses)))))
    (testing "Mops"
     (is (= expected-found-roots
-           (set (sut/find-roots mops-kg expected-match-hypotheses)))))))
+           (set (sut/find-roots mops-kg expected-match-hypotheses)))))
+   (testing "Datascript"
+    (is (= expected-found-roots
+           (set (sut/find-roots ds-kg expected-match-hypotheses)))))))
 
 (def diameter-gmap
   #{[:greater-diameter-Beaker-diameter-Vial
      :greater-temperature-Coffee-temperature-Icecube]
-    [:diameter-Beaker :temperature-Coffee] [:diameter-Vial :temperature-Icecube]
-    [:Beaker :Coffee] [:Vial :Icecube]})
+    [:diameter-Beaker :temperature-Coffee]
+    [:diameter-Vial :temperature-Icecube]
+    [:Beaker :Coffee]
+    [:Vial :Icecube]})
 (def flow-gmap
-  #{[:Water :Heat] [:Beaker :Coffee] [:Pipe :Bar]
+  #{[:Water :Heat]
+    [:Beaker :Coffee]
+    [:Pipe :Bar]
     [:flow-Beaker-Vial-Water-Pipe :flow-Coffee-Icecube-Heat-Bar]
     [:Vial :Icecube]})
 
 (def pressure-gmap
   #{[:Beaker :Coffee]
     [:greater-pressure-Beaker-pressure-Vial
-     :greater-temperature-Coffee-temperature-Icecube] [:Vial :Icecube]
+     :greater-temperature-Coffee-temperature-Icecube]
+    [:Vial :Icecube]
     [:pressure-Beaker :temperature-Coffee]
     [:pressure-Vial :temperature-Icecube]})
 
@@ -81,7 +102,10 @@
            (sut/split-into-mhs-sets kg expected-match-hypotheses))))
    (testing "Mops"
     (is (= expected-computed-initial-gmaps
-           (sut/split-into-mhs-sets mops-kg expected-match-hypotheses))))))
+           (sut/split-into-mhs-sets mops-kg expected-match-hypotheses))))
+   (testing "Datascript"
+    (is (= expected-computed-initial-gmaps
+           (sut/split-into-mhs-sets ds-kg expected-match-hypotheses))))))
 
 (def expected-combined-gmaps
   [[pressure-gmap flow-gmap]
@@ -90,31 +114,38 @@
 
 (deftest concistent-combs-of-mhs-sets-test
   (log/with-level :warn
-   (testing "Predicate calculus and Mops"
+   (testing "Predicate calculus, Mops, Datascript"
     (is
      (= expected-combined-gmaps
         (sut/consistent-combs-of-mhs-sets expected-match-hypotheses
                                           expected-computed-initial-gmaps))))))
 
 (def expected-merged-gmaps
-  [#{[:Beaker :Coffee] [:Water :Heat] [:pressure-Beaker :temperature-Coffee]
+  [#{[:Beaker :Coffee]
+     [:Water :Heat]
+     [:pressure-Beaker :temperature-Coffee]
      [:Pipe :Bar]
      [:greater-pressure-Beaker-pressure-Vial
       :greater-temperature-Coffee-temperature-Icecube]
      [:flow-Beaker-Vial-Water-Pipe :flow-Coffee-Icecube-Heat-Bar]
-     [:Vial :Icecube] [:pressure-Vial :temperature-Icecube]}
-   #{[:Beaker :Coffee] [:diameter-Vial :temperature-Icecube] [:Water :Heat]
-     [:Pipe :Bar] [:diameter-Beaker :temperature-Coffee]
+     [:Vial :Icecube]
+     [:pressure-Vial :temperature-Icecube]}
+   #{[:Beaker :Coffee]
+     [:diameter-Vial :temperature-Icecube]
+     [:Water :Heat]
+     [:Pipe :Bar]
+     [:diameter-Beaker :temperature-Coffee]
      [:greater-diameter-Beaker-diameter-Vial
       :greater-temperature-Coffee-temperature-Icecube]
      [:flow-Beaker-Vial-Water-Pipe :flow-Coffee-Icecube-Heat-Bar]
      [:Vial :Icecube]}
-   #{[:Water :Coffee] [:liquid-Water :liquid-Coffee]
+   #{[:Water :Coffee]
+     [:liquid-Water :liquid-Coffee]
      [:flat-top-Water :flat-top-Coffee]}])
 
 (deftest merge-mhs-sets-test
   (log/with-level :warn
-   (testing "Predicate calculus"
+   (testing "Predicate calculus, Mops, Datascript"
     (is (= expected-merged-gmaps
            (sut/merge-mhs-sets expected-combined-gmaps))))))
 
@@ -147,6 +178,12 @@
            (sut/finalize-gmaps mops-kg
                                :simple-water-flow
                                :simple-heat-flow
+                               expected-merged-gmaps))))
+   (testing "Datascript"
+    (is (= expected-finalized-gmaps
+           (sut/finalize-gmaps ds-kg
+                               :simple-water-flow
+                               :simple-heat-flow
                                expected-merged-gmaps))))))
 
 (def expected-generated-inferences
@@ -166,12 +203,18 @@
     (is (= expected-generated-inferences
            (->> expected-finalized-gmaps
                 (sut/generate-inferences mops-kg)
+                (map :inferences)))))
+   (testing "Datascript"
+    (is (= expected-generated-inferences
+           (->> expected-finalized-gmaps
+                (sut/generate-inferences ds-kg)
                 (map :inferences)))))))
 
 (def expected-transferred-inferences
   [#{[:cause :greater-temperature-Coffee-temperature-Icecube
       :flow-Coffee-Icecube-Heat-Bar]}
-   #{[:greater [:pressure :Coffee] [:pressure :Icecube]] [:pressure :Icecube]
+   #{[:greater [:pressure :Coffee] [:pressure :Icecube]]
+     [:pressure :Icecube]
      [:pressure :Coffee]
      [:cause
       [:greater [:pressure :Coffee] [:pressure :Icecube]]
@@ -191,6 +234,12 @@
            (->> expected-generated-inferences
                 (map #(assoc %1 :inferences %2) expected-finalized-gmaps)
                 (sut/transfer-inferences mops-kg)
+                (map :transferred)))))
+   (testing "Datascript"
+    (is (= expected-transferred-inferences
+           (->> expected-generated-inferences
+                (map #(assoc %1 :inferences %2) expected-finalized-gmaps)
+                (sut/transfer-inferences ds-kg)
                 (map :transferred)))))))
 
 (deftest perform-inference-test
@@ -204,6 +253,11 @@
     (is (= expected-transferred-inferences
            (->> expected-finalized-gmaps
                 (sut/perform-inference mops-kg)
+                (map :transferred)))))
+   (testing "Datascript"
+    (is (= expected-transferred-inferences
+           (->> expected-finalized-gmaps
+                (sut/perform-inference ds-kg)
                 (map :transferred)))))))
 
 (deftest match-test
@@ -219,6 +273,10 @@
    (testing "Mops"
     (is (= expected-finalized-gmaps
            (sut/match mops-kg
+             :simple-water-flow :simple-heat-flow))))
+   (testing "Datascript"
+    (is (= expected-finalized-gmaps
+           (sut/match ds-kg
              :simple-water-flow :simple-heat-flow))))))
 
 ; LocalWords:  gmaps

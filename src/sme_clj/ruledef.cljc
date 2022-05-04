@@ -95,20 +95,23 @@
                         (partial every?
                                  (partial types/functor-function? kg))))))))))
     ;; this rule not tested much yet
-    (make-rule
-     :commutative-args
-     :intern
-     (fn [kg [base target :as mh]]
-       (when (not-any? (partial types/ordered-functor? kg) mh)
-         (for [base   (mapcat second (types/expression-args kg base))
-               target (mapcat second (types/expression-args kg target))
-               :let   [mh [base target]]
-               :when  ((some-fn (partial every?
-                                         (partial types/strict-entity? kg))
-                                (partial every?
-                                         (partial types/functor-function? kg)))
-                       mh)]
-           mh))))]))
+    #_(make-rule
+       :commutative-args
+       :intern
+       (fn [kg [base target :as mh]]
+         (if (instance? Atom kg)
+           nil
+           (when (not-any? (partial types/ordered-functor? kg) mh)
+             (for [base   (mapcat second (types/expression-args kg base))
+                   target (mapcat second (types/expression-args kg target))
+                   :let   [mh [base target]]
+                   :when  ((some-fn (partial every?
+                                             (partial types/strict-entity? kg))
+                                    (partial every?
+                                             (partial types/functor-function?
+                                                      kg)))
+                           mh)]
+               mh)))))]))
 
 (defn ds-analogy-compatible-args
   [conn [b t]]
@@ -204,22 +207,22 @@
                          (partial every? (partial types/attribute-functor? kg))
                          (partial types/same-functor? kg))))))))))
     ;; this rule not tested much yet
-    (make-rule
-     :commutative-args
-     :intern
-     (fn [kg [base target :as mh]]
-       (when (not-any? (partial types/ordered-functor? kg) mh)
-         (for [base   (types/expression-args kg base)
-               target (types/expression-args kg target)
-               :let   [mh [base target]]
-               :when  ((some-fn
-                        (partial every? (partial types/strict-entity? kg))
-                        (partial every? (partial types/functor-function? kg))
-                        (every-pred (partial every?
-                                             (partial types/attribute-functor?
-                                                      kg))
-                                    (partial types/same-functor? kg)))
-                       mh)]
-           mh))))]))
+    #_(make-rule
+       :commutative-args
+       :intern
+       (fn [kg [base target :as mh]]
+         (when (not-any? (partial types/ordered-functor? kg) mh)
+           (for [base   (types/expression-args kg base)
+                 target (types/expression-args kg target)
+                 :let   [mh [base target]]
+                 :when  ((some-fn
+                          (partial every? (partial types/strict-entity? kg))
+                          (partial every? (partial types/functor-function? kg))
+                          (every-pred (partial every?
+                                               (partial types/attribute-functor?
+                                                        kg))
+                                      (partial types/same-functor? kg)))
+                         mh)]
+             mh))))]))
 
 ; LocalWords:  mh

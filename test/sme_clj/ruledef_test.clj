@@ -104,7 +104,7 @@
     [:pressure-Vial :pressure-Vial]
     [:Bar :Bar]})
 
-(def expected-commutative-args #{})
+#_(def expected-commutative-args #{})
 
 (deftest literal-similarity-test
   (log/with-level :warn
@@ -139,12 +139,12 @@
       (testing "Datascript"
        (is (= expected-compatible-args-matches
               (wrapped-rule-lit :compatible-args ds-kg mhs)))))
-     (testing "Commutative args"
-      (testing "Predicate calculus"
-       (is (= expected-commutative-args
-              (wrapped-rule-lit :commutative-args kg mhs))))
-      (testing "Mops")
-      (testing "Datascript")))))
+     #_(testing "Commutative args"
+        (testing "Predicate calculus"
+         (is (= expected-commutative-args
+                (wrapped-rule-lit :commutative-args kg mhs))))
+        (testing "Mops")
+        (testing "Datascript")))))
 
 (def expected-analogy-same-functor-matches
   #{[:diameter-Vial :diameter-Vial]
@@ -221,9 +221,9 @@
       (testing "Datascript"
        (is (= expected-compatible-args-matches
               (wrapped-rule-ana :compatible-args ds-kg mhs)))))
-     (testing "Commutative args"
-      (testing "Predicate calculus"
-       (is (= expected-commutative-args
-              (wrapped-rule-ana :commutative-args kg mhs))))
-      (testing "Mops")
-      (testing "Datascript")))))
+     #_(testing "Commutative args"
+        (testing "Predicate calculus"
+         (is (= expected-commutative-args
+                (wrapped-rule-ana :commutative-args kg mhs))))
+        (testing "Mops")
+        (testing "Datascript")))))
