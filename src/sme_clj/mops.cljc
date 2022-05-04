@@ -34,7 +34,11 @@
 
 (defmethod types/ordered? MopMap
   [kg k]
-  (when (mops/get-mop kg k) (mops/inherit-filler kg k :sme/ordered?)))
+  (when (mops/get-mop kg k)
+    (-> kg
+        (mops/inherit-filler k :sme/ordered?)
+        (contains? false)
+        not)))
 
 (defmethod types/add-entity MopMap
   [m id parent slots & args]

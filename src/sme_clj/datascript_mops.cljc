@@ -3,10 +3,10 @@
    instances of types and manipulate them."
   (:require
    [clojure.walk    :as walk]
-   [mops.datascript-mops]
    [mops.core       :as mops]
    [sme-clj.typedef :as types]
-   [clojure.set     :as set])
+   [clojure.set     :as set]
+   [datascript.core :as d])
   (:import #?(:clj [clojure.lang Atom])))
 
 (defmethod types/attribute? Atom [kg k] (mops/abstr? kg k :sme/Attribute))
@@ -25,9 +25,10 @@
            (map (juxt identity (partial mops/filler-value mop)))))))
 
 (defmethod types/expression-functor Atom
-  [kg k]
-  (let [mop (mops/get-mop kg k)]
-    (first (mops/filler-value mop :sme/functor))))
+  [conn k]
+  (let [mop (mops/get-mop conn k)]
+    (when-let [id (:db/id (first (mops/filler-value mop :sme/functor)))]
+      (:mops/id (d/pull @conn [:mops/id] id)))))
 
 (defmethod types/type-function? Atom [kg k] (mops/abstr? kg k :sme/Function))
 

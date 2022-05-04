@@ -1,3 +1,4 @@
 {:fn-map {"add-concept-graph" :arg2
           "with-level"        :arg1}
+ :set    {:wrap-coll? nil}
  :vector {:wrap-coll? nil}}

@@ -2,7 +2,8 @@
   "Utility/helper functions"
   (:require
    [datascript.core :as d]
-   [mops.core       :as mops]))
+   [mops.core       :as mops]
+   [mops.datascript-mops :as ds-mops]))
 
 (defn vals-as-keys [k m] (zipmap (map k m) m))
 
@@ -25,10 +26,19 @@
 
 (defn standardize-mops
   [conn concept-graph]
-  (->> [:mops/id concept-graph]
-       (d/q '{:find  [[?id ...]]
-              :in    [$ ?c]
-              :where [[?x :mops/id ?id] [?x :sme/concept-graph ?c]]}
-            @conn)
-       (map (juxt identity (partial mops/get-mop conn)))
-       (into {})))
+  (letfn [(realize-mop [mop]
+            (-> mop
+                ds-mops/realize-mop
+                (assoc :mops/parents
+                       (->> :mops/parents
+                            (mops/filler-value mop)
+                            (map (comp :mops/id
+                                       (partial d/pull @conn '[:mops/id])
+                                       :db/id))))))]
+    (->> (d/q '{:find  [[?id ...]]
+                :in    [$ ?c]
+                :where [[?x :mops/id ?id] [?x :sme/concept-graph ?c]]}
+              @conn
+              [:mops/id concept-graph])
+         (map (juxt identity (comp realize-mop (partial mops/get-mop conn))))
+         (into {}))))

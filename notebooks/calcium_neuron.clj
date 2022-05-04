@@ -204,6 +204,15 @@
     (mops/infer-hierarchy m)))
 
 
+
+;; Visualize the kg
+#_(visualize-analogy kg)
+[:Sodium-Channel :convert-low-Calcium-high-Calcium]
+(def gmaps
+  (->> rules/analogy
+       (sme/match kg
+         :neuron-signaling :calcium-signaling)))
+
 (->> gmaps
      first
      second
@@ -212,15 +221,6 @@
                  (every-pred (partial every? (rules/attribute-functor? kg))
                              (partial apply rules/same-functor? kg))))
      ((get-in rules/analogy [:same-functor :body]) kg))
-
-;; Visualize the kg
-#_(visualize-analogy kg)
-
-[:Sodium-Channel :convert-low-Calcium-high-Calcium]
-(def gmaps
-  (->> rules/analogy
-       (sme/match kg
-         :neuron-signaling :calcium-signaling)))
 
 (def inferences
   (->> gmaps
