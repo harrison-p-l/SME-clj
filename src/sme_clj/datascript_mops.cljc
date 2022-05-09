@@ -11,14 +11,21 @@
    #?(:cljs [sme-clj.util :as util]))
   (:import #?(:clj [clojure.lang Atom])))
 
+;;!zprint {:format :skip}
 (def ds-rules
   (into
    ds-mops/abstr-rules
-   '[[(p? ?e ?p) (parent? ?e :mops/parents ?p)]
-     [(functor-p? ?e ?p) [?e :sme/functor ?f] (p? ?f ?p)]
+   '[[(p? ?e ?p)
+      (parent? ?e :mops/parents ?p)]
+
+     [(functor-p? ?e ?p)
+      [?e :sme/functor ?f]
+      (p? ?f ?p)]
+
      [(same-functor? ?b-filler ?t-filler)
       [?b-filler :sme/functor ?filler-functor]
       [?t-filler :sme/functor ?filler-functor]]
+
      #_[(ordered-functor? ?e)
         [?e :sme/functor ?functor]
         (or-join
@@ -28,7 +35,9 @@
           (not [?functor :sme/ordered? false])
           (parent-filler? ?functor :mops/parents ?p :sme/ordered? true)))]]))
 
-(defn structural-role? [role] (not (#{"mops" "sme"} (namespace role))))
+(defn structural-role?
+  [role]
+  (not (#{"mops" "sme" "mops.role"} (namespace role))))
 
 (defn id->mop-id [conn id] (:mops/id (d/pull @conn [:mops/id] id)))
 

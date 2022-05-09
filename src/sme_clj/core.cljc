@@ -38,7 +38,9 @@
    #?(:clj [mops.records])
    [sme-clj.ruledef :as rules]
    [sme-clj.typedef :as types]
-   [taoensso.timbre :as log]))
+   [taoensso.timbre :as log]
+   [datascript.core :as d])
+  (:import [clojure.lang Atom]))
 
 ;; Note: "mh" = match hypothesis
 
@@ -159,8 +161,29 @@
 
 (defn all-children
   "Returns a set of all descendants of a root."
-  [kg root]
-  (set (dfs kg root types/direct-children)))
+  [kg [b t :as root]]
+  (if (instance? Atom kg)
+    (d/q
+     '{:find  [?b-child ?t-child]
+       :in    [$ ?b ?t %]
+       :where [(or-join
+                [?b ?t ?b-child ?t-child]
+                (my-children ?b ?t ?b-child ?t-child)
+                (and [(ground ?b) ?b-child] [(ground ?t) ?t-child]))]}
+     @kg
+     b
+     t
+     '[[(arg? ?role) [(namespace ?role) ?n]]
+       [(my-children ?b ?t ?b-child ?t-child)
+        [?b ?role ?b-child]
+        [?t ?role ?t-child]
+        (not (arg? ?role))]
+       [(my-children ?b ?t ?b-child ?t-child)
+        [?b ?role ?bc]
+        [?t ?role ?tc]
+        (not (arg? ?role))
+        (my-children ?bc ?tc ?b-child ?t-child)]])
+    (set (dfs kg root types/direct-children))))
 
 (defn split-into-mhs-sets
   "Given match hypothesis information, builds a set of initial gmaps. Returns a

@@ -1,12 +1,14 @@
 (ns sme-clj.core-test
   (:require
-   [clojure.test              :refer [testing deftest is]]
-   [sme-clj.core              :as sut]
-   [sme-clj.ruledef           :as rules]
+   [clojure.test         :refer [testing deftest is]]
+   [sme-clj.core         :as sut]
+   [sme-clj.ruledef      :as rules]
    [sme-clj.simple-water-heat :refer [kg mops-kg ds-kg]]
-   [taoensso.timbre           :as log]
-   [sme-clj.util              :as util]
-   [datascript.core           :as d]))
+   [taoensso.timbre      :as log]
+   [sme-clj.util         :as util]
+   [datascript.core      :as d]
+   [mops.core            :as mops]
+   [mops.datascript-mops :as ds-mops]))
 
 (def expected-match-hypotheses
   #{[:Water :Heat]
@@ -25,6 +27,43 @@
     [:pressure-Beaker :temperature-Coffee]
     [:pressure-Vial :temperature-Icecube]
     [:Vial :Icecube]})
+
+(deftest all-children-test
+  (let [expected-children #{[:Beaker :Beaker]
+                            [:Vial :Vial]
+                            [:diameter-Beaker :pressure-Beaker]
+                            [:diameter-Vial :pressure-Vial]
+                            [:greater-diameter-Beaker-diameter-Vial
+                             :greater-pressure-Beaker-pressure-Vial]}]
+    (testing "Datascript"
+     (is (= #{[:Beaker :Beaker] [:diameter-Beaker :pressure-Beaker]}
+            (->> [:diameter-Beaker
+                  :pressure-Beaker]
+                 (map (comp (partial d/entid @ds-kg) (partial vector :mops/id)))
+                 (sut/all-children ds-kg)
+                 (util/mhs->labels ds-kg))))
+     (is (= #{[:Vial :Vial] [:diameter-Vial :pressure-Vial]}
+            (->> [:diameter-Vial
+                  :pressure-Vial]
+                 (map (comp (partial d/entid @ds-kg) (partial vector :mops/id)))
+                 (sut/all-children ds-kg)
+                 (util/mhs->labels ds-kg))))
+     (->> [:greater-diameter-Beaker-diameter-Vial
+           :greater-pressure-Beaker-pressure-Vial]
+          (map (comp ds-mops/realize-mop (partial mops/get-mop ds-kg))))
+     (is (= expected-children
+            (->> [:greater-diameter-Beaker-diameter-Vial
+                  :greater-pressure-Beaker-pressure-Vial]
+                 (map (comp (partial d/entid @ds-kg) (partial vector :mops/id)))
+                 (sut/all-children ds-kg)
+                 (util/mhs->labels ds-kg)))))
+    (d/pull @ds-kg [:mops/id] 25)
+    (testing "Mops"
+     (is (= expected-children
+            (->> [:greater-diameter-Beaker-diameter-Vial
+                  :greater-pressure-Beaker-pressure-Vial]
+                 #_[:diameter-Beaker :pressure-Beaker]
+                 (sut/all-children mops-kg)))))))
 
 (deftest create-match-hypotheses-test
   (log/with-level :warn
@@ -205,19 +244,16 @@
 
 (deftest generate-inferences-test
   (log/with-level :warn
-   #_(types/ancestor? ds-kg
-                      #{}
-                      (d/entid @ds-kg [:mops/id :flow-Beaker-Vial-Water-Pipe]))
-   #_(testing "Predicate calculus"
-      (is (= expected-generated-inferences
-             (->> expected-finalized-gmaps
-                  (sut/generate-inferences kg)
-                  (map :inferences)))))
-   #_(testing "Mops"
-      (is (= expected-generated-inferences
-             (->> expected-finalized-gmaps
-                  (sut/generate-inferences mops-kg)
-                  (map :inferences)))))
+   (testing "Predicate calculus"
+    (is (= expected-generated-inferences
+           (->> expected-finalized-gmaps
+                (sut/generate-inferences kg)
+                (map :inferences)))))
+   (testing "Mops"
+    (is (= expected-generated-inferences
+           (->> expected-finalized-gmaps
+                (sut/generate-inferences mops-kg)
+                (map :inferences)))))
    (testing "Datascript"
     (is (= (set expected-generated-inferences)
            (->> expected-finalized-gmaps
