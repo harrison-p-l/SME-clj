@@ -34,12 +34,13 @@
           engine: algorithm and examples. Artificial Intelligence, 41, 1-62."
   (:require
    [clojure.math.combinatorics :as comb]
-   [clojure.set     :as set]
+   [clojure.set             :as set]
+   [datascript.core         :as d]
    #?(:clj [mops.records])
-   [sme-clj.ruledef :as rules]
-   [sme-clj.typedef :as types]
-   [taoensso.timbre :as log]
-   [datascript.core :as d])
+   [sme-clj.datascript-mops :as ds]
+   [sme-clj.ruledef         :as rules]
+   [sme-clj.typedef         :as types]
+   [taoensso.timbre         :as log])
   (:import [clojure.lang Atom]))
 
 ;; Note: "mh" = match hypothesis
@@ -119,10 +120,24 @@
 
 (defn consistent?
   "True if an MH is consistent, meaning none of its emaps are in its nogoods."
-  ([kg mhs mh]
-   (let [emaps   (set (all-emaps kg mhs))
-         no-good (set (find-no-good mhs mh))]
-     (empty? (set/intersection emaps no-good)))))
+  [kg children root]
+  (if (instance? Atom kg)
+    (d/q '{:find  [?b ?t]
+           :in    [$ [[?b ?t] ...] [[?b2 ?t2] ...] %]
+           :where [(p? ?b [:mops/id :sme/Expression])
+                   (p? ?t [:mops/id :sme/Expression])
+                   (p? ?b2 [:mops/id :sme/Expression])
+                   (p? ?t2 [:mops/id :sme/Expression])
+                   [(= ?b ?b2)]
+                   [(= ?t ?t2)]
+                   (not [(= ?b ?b2)] [(= ?t ?t2)])]}
+         @kg
+         children
+         children
+         ds/ds-rules)
+    (let [emaps   (set (all-emaps kg children))
+          no-good (set (find-no-good children root))]
+      (empty? (set/intersection emaps no-good)))))
 
 (defn find-roots
   "Returns only the root hypotheses, ie. those that are not children of any
