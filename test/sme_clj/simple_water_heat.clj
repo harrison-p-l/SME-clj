@@ -3,8 +3,7 @@
    [sme-clj.typedef      :as types]
    [sme-clj.predicate-calculus]
    [sme-clj.datascript-mops]
-   [mops.datascript-mops :as dm]
-   [ont-app.datascript-graph.core :as dsg]))
+   [mops.datascript-mops :as dm]))
 
 (def kg
   (as-> (types/initialize-kg {}) m

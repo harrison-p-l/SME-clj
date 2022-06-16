@@ -2,12 +2,13 @@
   "Structure mapping matching rule definitions. Contains both basic literal
    similarity rules and macros for defining new rulesets."
   (:require
-   [datascript.core         :as d]
-   [sme-clj.datascript-mops :as ds]
+   [sme-clj.datascript-mops :as sme-dm]
    [sme-clj.ruledef         :as rules]
    [sme-clj.typedef         :as types]
-   [tuh8888.clojure-utils   :as util])
-  (:import (clojure.lang Atom)))
+   [tuh8888.clojure-utils   :as util]
+   [mops.datascript-mops    :as dm]
+   [ont-app.datascript-graph.core :as dsg])
+  (:import (ont_app.datascript_graph.core DatascriptGraph)))
 
 ;;; Rule definition helpers
 (defn apply-rule [kg {:keys [body]} mh] (body kg mh))
@@ -21,31 +22,34 @@
            body)})
 
 (defn ds-compatible-args
-  [conn [b t]]
+  [g [b t]]
   (->>
-   ds/ds-rules
-   (d/q
-    '{:find  [?b-filler ?t-filler]
-      :in    [$ ?b ?t ?arg? %]
-      :where [(p? ?b [:mops/id :sme/Expression])
-              (p? ?t [:mops/id :sme/Expression])
+   (dm/query-with-rules
+    g
+    '{:find  [?b-filler-id ?t-filler-id]
+      :in    [?b ?t ?arg?]
+      :where [(p? ?b [::dsg/id :sme/Expression])
+              (p? ?t [::dsg/id :sme/Expression])
               #_(ordered-functor? ?b)
               #_(ordered-functor? ?t)
-              [?b ?role ?b-filler]
-              [?t ?role ?t-filler]
-              [(?arg? ?role)]
+              (edge ?b ?role ?b-filler)
+              (edge ?t ?role ?t-filler)
+              [?role ::dsg/id ?role-id]
+              [(?arg? ?role-id)]
               (or-join
                [?b-filler ?t-filler]
                (and
-                (p? ?b-filler [:mops/id :sme/Entity])
-                (p? ?t-filler [:mops/id :sme/Entity]))
+                (p? ?b-filler [::dsg/id :sme/Entity])
+                (p? ?t-filler [::dsg/id :sme/Entity]))
                (and
-                (functor-p? ?b-filler [:mops/id :sme/Function])
-                (functor-p? ?t-filler [:mops/id :sme/Function])))]}
-    @conn
-    b
-    t
-    ds/structural-role?)))
+                (functor-p? ?b-filler [::dsg/id :sme/Function])
+                (functor-p? ?t-filler [::dsg/id :sme/Function])))
+              [?b-filler ::dsg/id ?b-filler-id]
+              [?t-filler ::dsg/id ?t-filler-id]]}
+    sme-dm/ds-rules
+    [::dsg/id b]
+    [::dsg/id t]
+    sme-dm/structural-role?)))
 
 ;; As in SME, basic analogical matching rules, direct port
 (def literal-similarity
@@ -54,21 +58,22 @@
    [(make-rule
      :same-functor
      :filter
-     (fn [kg [b t :as mh]]
-       (if (instance? Atom kg)
-         (->> (d/q '{:find  [?f]
-                     :in    [$ ?b ?t]
-                     :where [[?b :sme/functor ?f] [?t :sme/functor ?f]]}
-                   @kg
-                   b
-                   t)
-              seq)
-         (types/same-functor? kg mh))))
+     (fn [g [b t :as mh]]
+       (if (instance? DatascriptGraph g)
+         (-> g
+             (dm/query '{:find  [?f]
+                         :in    [?b ?t]
+                         :where [(edge ?b [::dsg/id :sme/functor] ?f)
+                                 (edge ?t [::dsg/id :sme/functor] ?f)]}
+                       [::dsg/id b]
+                       [::dsg/id t])
+             seq)
+         (types/same-functor? g mh))))
     (make-rule
      :compatible-args
      :intern
      (fn [kg mh]
-       (if (instance? Atom kg)
+       (if (instance? DatascriptGraph kg)
          (ds-compatible-args kg mh)
          (when (every? (partial types/ordered-functor? kg) mh)
            (let [mhs (->> mh
@@ -89,7 +94,7 @@
        :commutative-args
        :intern
        (fn [kg [base target :as mh]]
-         (if (instance? Atom kg)
+         (if (instance? DatascriptGraph kg)
            nil
            (when (not-any? (partial types/ordered-functor? kg) mh)
              (for [base   (mapcat second (types/expression-args kg base))
@@ -104,35 +109,37 @@
                mh)))))]))
 
 (defn ds-analogy-compatible-args
-  [conn [b t]]
-  (->>
-   ds/ds-rules
-   (d/q
-    '{:find  [?b-filler ?t-filler]
-      :in    [$ ?b ?t ?arg? %]
-      :where [(parent? ?b :mops/parents [:mops/id :sme/Expression])
-              (parent? ?t :mops/parents [:mops/id :sme/Expression])
-              #_(ordered-functor? ?b)
-              #_(ordered-functor? ?t)
-              [?b ?role ?b-filler]
-              [?t ?role ?t-filler]
-              [(?arg? ?role)]
-              (or-join
-               [?b-filler ?t-filler]
-               (and
-                (parent? ?b-filler :mops/parents [:mops/id :sme/Entity])
-                (parent? ?t-filler :mops/parents [:mops/id :sme/Entity]))
-               (and
-                (functor-p? ?b-filler [:mops/id :sme/Function])
-                (functor-p? ?t-filler [:mops/id :sme/Function]))
-               (and
-                (functor-p? ?b-filler [:mops/id :sme/Attribute])
-                (functor-p? ?t-filler [:mops/id :sme/Attribute])
-                (same-functor? ?b-filler ?t-filler)))]}
-    @conn
-    b
-    t
-    ds/structural-role?)))
+  [g [b t]]
+  (dm/query-with-rules
+   g
+   '{:find  [?b-filler-id ?t-filler-id]
+     :in    [?b ?t ?arg?]
+     :where [(p? ?b [::dsg/id :sme/Expression])
+             (p? ?t [::dsg/id :sme/Expression])
+             #_(ordered-functor? ?b)
+             #_(ordered-functor? ?t)
+             (edge ?b ?role ?b-filler)
+             (edge ?t ?role ?t-filler)
+             [?role ::dsg/id ?role-id]
+             [(?arg? ?role-id)]
+             (or-join
+              [?b-filler ?t-filler]
+              (and
+               (p? ?b-filler [::dsg/id :sme/Entity])
+               (p? ?t-filler [::dsg/id :sme/Entity]))
+              (and
+               (functor-p? ?b-filler [::dsg/id :sme/Function])
+               (functor-p? ?t-filler [::dsg/id :sme/Function]))
+              (and
+               (functor-p? ?b-filler [::dsg/id :sme/Attribute])
+               (functor-p? ?t-filler [::dsg/id :sme/Attribute])
+               (same-functor? ?b-filler ?t-filler)))
+             [?b-filler ::dsg/id ?b-filler-id]
+             [?t-filler ::dsg/id ?t-filler-id]]}
+   sme-dm/ds-rules
+   [::dsg/id b]
+   [::dsg/id t]
+   sme-dm/structural-role?))
 
 (def analogy
   (util/vals-as-keys
@@ -141,17 +148,18 @@
      :same-functor
      :filter
      (fn [kg [b t :as mh]]
-       (if (instance? Atom kg)
-         (->> ds/ds-rules
-              (d/q '{:find  [?f]
-                     :in    [$ ?b ?t %]
-                     :where [[?b :sme/functor ?f]
-                             [?t :sme/functor ?f]
-                             (not (p? ?f [:mops/id :sme/Attribute]))]}
-                   @kg
-                   b
-                   t)
-              seq)
+       (if (instance? DatascriptGraph kg)
+         (-> kg
+             (dm/query-with-rules '{:find [?f]
+                                    :in [?b ?t]
+                                    :where
+                                    [(edge ?b [::dsg/id :sme/functor] ?f)
+                                     (edge ?t [::dsg/id :sme/functor] ?f)
+                                     (not (p? ?f [::dsg/id :sme/Attribute]))]}
+                                  sme-dm/ds-rules
+                                  [::dsg/id b]
+                                  [::dsg/id t])
+             seq)
          (try ((every-pred (partial types/same-functor? kg)
                            (partial
                             every?
@@ -162,7 +170,7 @@
      :compatible-args
      :intern
      (fn [kg mh]
-       (if (instance? Atom kg)
+       (if (instance? DatascriptGraph kg)
          (ds-analogy-compatible-args kg mh)
          (when (every? (partial types/ordered-functor? kg) mh)
            (let [mhs (->> mh

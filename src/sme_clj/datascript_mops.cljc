@@ -1,28 +1,34 @@
 (ns sme-clj.datascript-mops
   "Data type definitions and protocols for SME, as well as facilities to create
    instances of types and manipulate them."
-  (:require
-   [sme-clj.typedef      :as types]
-   [clojure.set          :as set]
-   [clojure.walk         :as walk]
-   [mops.datascript-mops :as dm]
-   [ont-app.datascript-graph.core :as dsg]
-   #?@(:cljs [[tuh8888.clojure-utils :as util]]))
-  (:import (clojure.lang Atom)
-           (ont_app.datascript_graph.core DatascriptGraph)))
+  #?@(:clj [(:require
+             [clojure.set          :as set]
+             [clojure.walk         :as walk]
+             [mops.datascript-mops :as dm]
+             [ont-app.datascript-graph.core :as dsg]
+             [sme-clj.typedef      :as types])
+            (:import (ont_app.datascript_graph.core DatascriptGraph))]
+      :cljs [(:require
+              [clojure.set           :as set]
+              [clojure.walk          :as walk]
+              [mops.datascript-mops  :as dm]
+              [ont-app.datascript-graph.core :as dsg]
+              [sme-clj.typedef       :as types]
+              [tuh8888.clojure-utils :as util])
+             (:import (ont_app.datascript_graph.core DatascriptGraph))]))
 
 ;;!zprint {:format :skip}
 (def ds-rules
   '[[(p? ?e ?p)
-     (parent? ?e :mops/parents ?p)]
+     (ancestor? ?e [::dsg/id :mops/parents] ?p)]
 
     [(functor-p? ?e ?p)
-     [?e :sme/functor ?f]
+     (edge ?e [::dsg/id :sme/functor] ?f)
      (p? ?f ?p)]
 
     [(same-functor? ?b-filler ?t-filler)
-     [?b-filler :sme/functor ?filler-functor]
-     [?t-filler :sme/functor ?filler-functor]]
+     (edge ?b-filler [::dsg/id :sme/functor] ?filler-functor)
+     (edge ?t-filler [::dsg/id :sme/functor] ?filler-functor)]
 
     #_[(ordered-functor? ?e)
        [?e :sme/functor ?functor]
@@ -49,7 +55,7 @@
   [g k]
   (dm/abstr? g [::dsg/id k] [::dsg/id :sme/Expression]))
 
-(defmethod types/expression-args Atom
+(defmethod types/expression-args DatascriptGraph
   [g k]
   (-> g
       (dm/query-with-rules '{:find  [?role ?filler]
@@ -130,8 +136,9 @@
            (swap! ag dm/add-mop
              (-> function-args
                  types/args->slots
-                 (update-vals (fn [filler]
-                                {filler {:sme/concept-graph concept-graph-id}}))
+                 (#?(:clj update-vals
+                     :cljs util/cljs-update-vals)
+                  (fn [filler] {filler {:sme/concept-graph concept-graph-id}}))
                  (->> (apply concat)
                       (into [id :mops/parents :sme/Expression :sme/functor
                              functor #_#_:sme/concept-graph concept-graph-id])))
@@ -213,7 +220,9 @@
   (letfn [(uv [p f m]
             (-> m
                 (->> (group-by p))
-                (update-vals f)))]
+                (#?(:clj update-vals
+                    :cljs util/cljs-update-vals)
+                 f)))]
     (-> g
         (dm/query '{:find  [?s-id ?p-id ?o-id ?prop ?attr-id]
                     :keys  [s p o prop attr]
