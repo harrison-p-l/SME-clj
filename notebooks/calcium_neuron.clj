@@ -1,6 +1,5 @@
 (ns calcium-neuron
   (:require
-   [mops.core       :as mops]
    [mops.records    :as mr]
    [sme-clj.core    :as sme]
    [sme-clj.ruledef :as rules]

@@ -1,14 +1,13 @@
 (ns sme-clj.core-test
   (:require
-   [clojure.test         :refer [testing deftest is]]
-   [sme-clj.core         :as sut]
-   [sme-clj.ruledef      :as rules]
+   [clojure.test              :refer [testing deftest is]]
+   [sme-clj.core              :as sut]
+   [sme-clj.ruledef           :as rules]
    [sme-clj.simple-water-heat :refer [kg mops-kg ds-kg]]
-   [taoensso.timbre      :as log]
-   [sme-clj.util         :as util]
-   [datascript.core      :as d]
-   [mops.core            :as mops]
-   [mops.datascript-mops :as ds-mops]))
+   [taoensso.timbre           :as log]
+   [sme-clj.util              :as util]
+   [datascript.core           :as d]
+   [mops.datascript-mops      :as ds-mops]))
 
 (def expected-match-hypotheses
   #{[:Water :Heat]

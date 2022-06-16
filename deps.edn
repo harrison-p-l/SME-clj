@@ -1,8 +1,10 @@
 {:aliases {:dev {:extra-paths ["test"]}}
  :deps    {com.taoensso/timbre               {:mvn/version "5.1.2"}
+           io.github.tuh8888/clojure-utils   {:local/root
+                                              "../../../../clojure-utils"}
            io.github.tuh8888/datascript-mops {:local/root
                                               "../../../../datascript-mops"}
-           org.clojure/clojure               {:mvn/version "1.11.0-alpha2"}
+           org.clojure/clojure               {:mvn/version "1.11.0"}
            org.clojure/math.combinatorics    {:mvn/version "0.1.6"}
            ubergraph/ubergraph               {:mvn/version "0.8.1"}}
  :paths   ["src"]}

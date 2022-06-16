@@ -1,47 +1,13 @@
 (ns sme-clj.util
   "Utility/helper functions"
   (:require
-   [clojure.walk         :as walk]
-   [datascript.core      :as d]
-   [mops.core            :as mops]
-   [mops.datascript-mops :as ds-mops]))
+   [clojure.walk          :as walk]
+   [datascript.core       :as d]
+   [mops.datascript-mops  :as dm]
+   [ont-app.datascript-graph.core :as dsg]
+   [tuh8888.clojure-utils :refer [cond-pred->]]))
 
-(defn vals-as-keys [k m] (zipmap (map k m) m))
 
-(defmacro cond-pred->
-  "Like cond-> but also threads initial expr through tests."
-  {:added "1.5"}
-  [expr & clauses]
-  (assert (even? (count clauses)))
-  (let [g     (gensym)
-        steps (map (fn [[test step]]
-                     `(if (-> ~g
-                              ~test)
-                        (-> ~g
-                            ~step)
-                        ~g))
-                   (partition 2 clauses))]
-    `(let [~g ~expr
-           ~@(interleave (repeat g) (butlast steps))]
-       ~(if (empty? steps) g (last steps)))))
-
-(defn standardize-mops
-  [conn concept-graph]
-  (letfn [(realize-mop [mop]
-            (-> mop
-                ds-mops/realize-mop
-                (assoc :mops/parents
-                       (->> :mops/parents
-                            (mops/filler-value mop)
-                            (map (comp :mops/id
-                                       (partial d/pull @conn '[:mops/id])))))))]
-    (->> (d/q '{:find  [[?id ...]]
-                :in    [$ ?c]
-                :where [[?x :mops/id ?id] [?x :sme/concept-graph ?c]]}
-              @conn
-              [:mops/id concept-graph])
-         (map (juxt identity (comp realize-mop (partial mops/get-mop conn))))
-         (into {}))))
 
 (defn mhs->labels
   [conn mhs]
@@ -65,8 +31,10 @@
                                      :mops/id)))
                  inferences))
 
-(defn cljs-update-vals
-  [m f]
-  (->> m
-       (map (juxt key (comp f val)))
-       (into {})))
+(defn standardize-db
+  [db]
+  (-> db
+      (d/datoms :eavt)
+      (->> (map (partial drop-last 2))
+           (map vec))
+      set))

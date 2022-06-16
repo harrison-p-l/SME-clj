@@ -2,8 +2,7 @@
   "Data type definitions and protocols for SME, as well as facilities to create
    instances of types and manipulate them."
   (:require
-   [sme-clj.util :as util
-                 :include-macros true]))
+   [tuh8888.clojure-utils :refer [cond-pred->]]))
 
 (defmulti attribute? (comp type first vector))
 
@@ -53,16 +52,16 @@
   [ids]
   (->> ids
        (map (fn [id]
-              (util/cond-pred-> id
-                                coll?
-                                (-> (->> (mapv (comp keyword pretty-demunge)))
-                                    combine-ids
-                                    str
-                                    (#(str "[" % "]"))
-                                    (subs 1))
-                                ((complement keyword?))
-                                (-> keyword
-                                    str))))
+              (cond-pred-> id
+                           coll?
+                           (-> (->> (mapv (comp keyword pretty-demunge)))
+                               combine-ids
+                               str
+                               (#(str "[" % "]"))
+                               (subs 1)
+                               (cond-pred-> ((complement keyword?))
+                                            (-> keyword
+                                                str))))))
        (map str)
        (map #(subs % 1))
        (interpose "-")

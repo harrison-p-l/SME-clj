@@ -1,7 +1,6 @@
 (ns solar-atom
   (:require
    [mops.records    :as mr]
-   [mops.core       :as mops]
    [sme-clj.core    :as sme]
    [sme-clj.ruledef :as rules]
    [sme-clj.typedef :as types]

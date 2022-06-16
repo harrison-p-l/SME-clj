@@ -6,7 +6,7 @@
    [sme-clj.datascript-mops :as ds]
    [sme-clj.ruledef         :as rules]
    [sme-clj.typedef         :as types]
-   [sme-clj.util            :refer [vals-as-keys]])
+   [tuh8888.clojure-utils   :as util])
   (:import (clojure.lang Atom)))
 
 ;;; Rule definition helpers
@@ -49,7 +49,7 @@
 
 ;; As in SME, basic analogical matching rules, direct port
 (def literal-similarity
-  (vals-as-keys
+  (util/vals-as-keys
    :id
    [(make-rule
      :same-functor
@@ -135,7 +135,7 @@
     ds/structural-role?)))
 
 (def analogy
-  (vals-as-keys
+  (util/vals-as-keys
    :id
    [(make-rule
      :same-functor
