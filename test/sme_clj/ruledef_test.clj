@@ -1,9 +1,10 @@
 (ns sme-clj.ruledef-test
   (:require
-   [clojure.test    :refer [deftest is testing]]
-   [sme-clj.ruledef :as sut]
+   [clojure.test              :refer [deftest is testing]]
+   [sme-clj.ruledef           :as sut]
    [sme-clj.simple-water-heat :refer [ds-kg kg]]
-   [taoensso.timbre :as log]))
+   [sme-clj.test-utils        :as test-utils]
+   [taoensso.timbre           :as log]))
 
 (def expected-same-functor-matches
   #{[:diameter-Vial :diameter-Vial]
@@ -126,9 +127,9 @@
       (testing "Datascript"
        (is (= expected-same-functor-matches
               (->> mhs
-                   #_(util/mhs->ids ds-kg)
+                   (test-utils/mhs->ids ds-kg)
                    (wrapped-rule-lit :same-functor ds-kg)
-                   #_(util/mhs->labels ds-kg))))))
+                   (test-utils/mhs->labels ds-kg))))))
      (testing "Compatible args"
       (testing "Predicate calculus"
        (is (= expected-compatible-args-matches
@@ -136,9 +137,9 @@
       (testing "Datascript"
        (is (= expected-compatible-args-matches
               (->> mhs
-                   #_(util/mhs->ids ds-kg)
+                   (test-utils/mhs->ids ds-kg)
                    (wrapped-rule-lit :compatible-args ds-kg)
-                   #_(util/mhs->labels ds-kg))))))
+                   (test-utils/mhs->labels ds-kg))))))
      #_(testing "Commutative args"
         (testing "Predicate calculus"
          (is (= expected-commutative-args
@@ -207,9 +208,9 @@
       (testing "Datascript"
        (is (= expected-analogy-same-functor-matches
               (->> mhs
-                   #_(util/mhs->ids ds-kg)
+                   (test-utils/mhs->ids ds-kg)
                    (wrapped-rule-ana :same-functor ds-kg)
-                   #_(util/mhs->labels ds-kg))))))
+                   (test-utils/mhs->labels ds-kg))))))
      (testing "Compatible args"
       (testing "Predicate calculus"
        (is (= expected-compatible-args-matches
@@ -217,9 +218,9 @@
       (testing "Datascript"
        (is (= expected-compatible-args-matches
               (->> mhs
-                   #_(util/mhs->ids ds-kg)
+                   (test-utils/mhs->ids ds-kg)
                    (wrapped-rule-ana :compatible-args ds-kg)
-                   #_(util/mhs->labels ds-kg))))))
+                   (test-utils/mhs->labels ds-kg))))))
      #_(testing "Commutative args"
         (testing "Predicate calculus"
          (is (= expected-commutative-args

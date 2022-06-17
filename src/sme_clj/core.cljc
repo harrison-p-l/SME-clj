@@ -123,13 +123,9 @@
   [kg children root]
   (if (instance? DatascriptGraph kg)
     (dm/query-with-rules kg
-                         '{:find  [?b-id ?t-id]
-                           :in    [[[?b-id ?t-id] ...] [[?b2-id ?t2-id] ...]]
-                           :where [[?b ::dsg/id ?b-id]
-                                   [?t ::dsg/id ?t-id]
-                                   [?t2 ::dsg/id ?t2-id]
-                                   [?b2 ::dsg/id ?b2-id]
-                                   [(= ?b ?b2)]
+                         '{:find  [?b ?t]
+                           :in    [[[?b ?t] ...] [[?b2 ?t2] ...]]
+                           :where [[(= ?b ?b2)]
                                    [(= ?t ?t2)]
                                    (not [(= ?b ?b2)] [(= ?t ?t2)])
                                    (p? ?b [::dsg/id :sme/Expression])
@@ -184,14 +180,12 @@
   (if (instance? DatascriptGraph kg)
     (dm/query-with-rules
      kg
-     '{:find  [?b-child-id ?t-child-id]
+     '{:find  [?b-child ?t-child]
        :in    [?b ?t]
        :where [(or-join
                 [?b ?t ?b-child ?t-child]
                 (my-children ?b ?t ?b-child ?t-child)
-                (and [(ground ?b) ?b-child] [(ground ?t) ?t-child]))
-               [?b-child ::dsg/id ?b-child-id]
-               [?t-child ::dsg/id ?t-child-id]]}
+                (and [(ground ?b) ?b-child] [(ground ?t) ?t-child]))]}
      '[[(arg? ?role) [?role ::dsg/id ?role-id] [(namespace ?role-id) ?n]]
        [(my-children ?b ?t ?b-child ?t-child)
         (edge ?b ?role ?b-child)
@@ -202,8 +196,8 @@
         (edge ?t ?role ?tc)
         (not (arg? ?role))
         (my-children ?bc ?tc ?b-child ?t-child)]]
-     [::dsg/id b]
-     [::dsg/id t])
+     b
+     t)
     (set (dfs kg root types/direct-children))))
 
 (defn split-into-mhs-sets

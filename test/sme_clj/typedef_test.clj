@@ -1,13 +1,14 @@
 (ns sme-clj.typedef-test
   (:require
-   [clojure.test            :refer [deftest is testing]]
-   [mops.datascript-mops    :as dm]
-   [sme-clj.datascript-mops :as sme-dm]
+   [clojure.test              :refer [deftest is testing]]
+   [mops.datascript-mops      :as dm]
+   [sme-clj.datascript-mops   :as sme-dm]
    [sme-clj.predicate-calculus]
    [sme-clj.simple-water-heat :refer [kg ds-kg]]
-   [sme-clj.typedef         :as sut]
-   [taoensso.timbre         :as log]
-   [sme-clj.util            :as util]))
+   [sme-clj.typedef           :as sut]
+   [taoensso.timbre           :as log]
+   [ont-app.datascript-graph.core :as dsg]
+   [sme-clj.test-utils        :as test-utils]))
 
 (deftest make-concept-graph-test
   (log/with-level :warn
@@ -275,9 +276,10 @@
                            (sut/expressions kg :simple-heat-flow))))))
    (testing "Mops"
     (is (= expected-concept-graph-expressions
-           (into #{}
-                 (lazy-cat (sut/expressions ds-kg :simple-heat-flow)
-                           (sut/expressions ds-kg :simple-water-flow))))))))
+           (->> (lazy-cat (sut/expressions ds-kg :simple-heat-flow)
+                          (sut/expressions ds-kg :simple-water-flow))
+                (test-utils/ids->labels ds-kg)
+                (into #{})))))))
 
 (deftest find-children-test
   (log/with-level :warn
@@ -297,6 +299,8 @@
       (is (= expected-found-children1
              (set (sut/direct-children ds-kg [:Beaker :Coffee]))))
       (is (= expected-found-children2
-             (set (sut/direct-children ds-kg
-                                       [:flow-Beaker-Vial-Water-Pipe
-                                        :flow-Coffee-Icecube-Heat-Bar]))))))))
+             (->> [[::dsg/id :flow-Beaker-Vial-Water-Pipe]
+                   [::dsg/id :flow-Coffee-Icecube-Heat-Bar]]
+                  (sut/direct-children ds-kg)
+                  (test-utils/mhs->labels ds-kg)
+                  set)))))))

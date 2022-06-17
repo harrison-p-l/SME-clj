@@ -26,7 +26,7 @@
   (->>
    (dm/query-with-rules
     g
-    '{:find  [?b-filler-id ?t-filler-id]
+    '{:find  [?b-filler ?t-filler]
       :in    [?b ?t ?arg?]
       :where [(p? ?b [::dsg/id :sme/Expression])
               (p? ?t [::dsg/id :sme/Expression])
@@ -43,12 +43,10 @@
                 (p? ?t-filler [::dsg/id :sme/Entity]))
                (and
                 (functor-p? ?b-filler [::dsg/id :sme/Function])
-                (functor-p? ?t-filler [::dsg/id :sme/Function])))
-              [?b-filler ::dsg/id ?b-filler-id]
-              [?t-filler ::dsg/id ?t-filler-id]]}
+                (functor-p? ?t-filler [::dsg/id :sme/Function])))]}
     sme-dm/ds-rules
-    [::dsg/id b]
-    [::dsg/id t]
+    b
+    t
     sme-dm/structural-role?)))
 
 ;; As in SME, basic analogical matching rules, direct port
@@ -65,8 +63,8 @@
                          :in    [?b ?t]
                          :where [(edge ?b [::dsg/id :sme/functor] ?f)
                                  (edge ?t [::dsg/id :sme/functor] ?f)]}
-                       [::dsg/id b]
-                       [::dsg/id t])
+                       b
+                       t)
              seq)
          (types/same-functor? g mh))))
     (make-rule
@@ -112,7 +110,7 @@
   [g [b t]]
   (dm/query-with-rules
    g
-   '{:find  [?b-filler-id ?t-filler-id]
+   '{:find  [?b-filler ?t-filler]
      :in    [?b ?t ?arg?]
      :where [(p? ?b [::dsg/id :sme/Expression])
              (p? ?t [::dsg/id :sme/Expression])
@@ -133,12 +131,10 @@
               (and
                (functor-p? ?b-filler [::dsg/id :sme/Attribute])
                (functor-p? ?t-filler [::dsg/id :sme/Attribute])
-               (same-functor? ?b-filler ?t-filler)))
-             [?b-filler ::dsg/id ?b-filler-id]
-             [?t-filler ::dsg/id ?t-filler-id]]}
+               (same-functor? ?b-filler ?t-filler)))]}
    sme-dm/ds-rules
-   [::dsg/id b]
-   [::dsg/id t]
+   b
+   t
    sme-dm/structural-role?))
 
 (def analogy
@@ -157,8 +153,8 @@
                                      (edge ?t [::dsg/id :sme/functor] ?f)
                                      (not (p? ?f [::dsg/id :sme/Attribute]))]}
                                   sme-dm/ds-rules
-                                  [::dsg/id b]
-                                  [::dsg/id t])
+                                  b
+                                  t)
              seq)
          (try ((every-pred (partial types/same-functor? kg)
                            (partial

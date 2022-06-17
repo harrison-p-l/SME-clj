@@ -54,7 +54,7 @@
        (map (fn [id]
               (cond-pred-> id
                            coll?
-                           (-> (->> (mapv (comp keyword pretty-demunge)))
+                           (-> ((partial mapv (comp keyword pretty-demunge)))
                                combine-ids
                                str
                                (#(str "[" % "]"))

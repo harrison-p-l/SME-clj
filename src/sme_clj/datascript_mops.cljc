@@ -45,57 +45,44 @@
 
 (defmethod types/attribute? DatascriptGraph
   [g k]
-  (dm/abstr? g [::dsg/id k] [::dsg/id :sme/Attribute]))
+  (dm/abstr? g k [::dsg/id :sme/Attribute]))
 
 (defmethod types/entity? DatascriptGraph
   [g k]
-  (dm/abstr? g [::dsg/id k] [::dsg/id :sme/Entity]))
+  (dm/abstr? g k [::dsg/id :sme/Entity]))
 
 (defmethod types/expression? DatascriptGraph
   [g k]
-  (dm/abstr? g [::dsg/id k] [::dsg/id :sme/Expression]))
+  (dm/abstr? g k [::dsg/id :sme/Expression]))
 
 (defmethod types/expression-args DatascriptGraph
   [g k]
   (-> g
-      (dm/query-with-rules '{:find  [?role-id ?filler-id]
+      (dm/query-with-rules '{:find  [?role ?filler]
                              :in    [?e ?arg?]
                              :where [(p? ?e [::dsg/id :sme/Expression])
                                      (edge ?e ?role ?filler)
                                      [?role ::dsg/id ?role-id]
-                                     [?filler ::dsg/id ?filler-id]
-                                     [?role ::dsg/id ?role-id]
                                      [(?arg? ?role-id)]]}
                            ds-rules
-                           [::dsg/id k]
+                           k
                            structural-role?)
       (->> (group-by first))
       (#?(:clj update-vals
           :cljs util/cljs-update-vals)
-       (partial map second)))
-  #_(when (types/expression? conn k)
-      (let [mop (mops/get-mop conn k)]
-        (->> mop
-             mops/roles
-             (remove #{:sme/concept-graph :sme/functor :mops/parents})
-             (map (juxt identity
-                        (comp #_(partial map
-                                         (comp :mops/id
-                                               (partial d/pull @conn [:mops/id])
-                                               :db/id))
-                              (partial mops/filler-value mop))))))))
+       (partial map second))))
 
 (defmethod types/expression-functor DatascriptGraph
   [g k]
   (dm/query g
-            '{:find  [?f-id .]
+            '{:find  [?f .]
               :in    [?e]
-              :where [(edge ?e [::dsg/id :sme/functor] ?f) [?f ::dsg/id ?f-id]]}
-            [::dsg/id k]))
+              :where [(edge ?e [::dsg/id :sme/functor] ?f)]}
+            k))
 
 (defmethod types/type-function? DatascriptGraph
   [g k]
-  (dm/abstr? g [::dsg/id k] [::dsg/id :sme/Function]))
+  (dm/abstr? g k [::dsg/id :sme/Function]))
 
 (defmethod types/ordered? DatascriptGraph
   [g k]
@@ -110,7 +97,7 @@
                (ancestor? ?k ?abstr-role ?a)
                (abstr? ?abstr-role)
                (edge ?a :sme/ordered? ?f)))]}
-   [::dsg/id k]))
+   k))
 
 (defmethod types/add-entity DatascriptGraph
   [g id parent slots & args]
@@ -182,31 +169,22 @@
 (defmethod types/expressions DatascriptGraph
   [g concept-graph-name]
   (dm/query g
-            '{:find  [[?s-id ...]]
+            '{:find  [[?s ...]]
               :in    [?concept-graph]
-              :where [(edge ?s _ _ ?e)
-                      [?e :sme/concept-graph ?concept-graph]
-                      [?s ::dsg/id ?s-id]]}
-            [::dsg/id concept-graph-name])
-  #_(d/q '{:find  [[?e ...]]
-           :in    [$ ?concept-graph]
-           :where [[?e :sme/concept-graph ?concept-graph]]}
-         @g
-         [:mops/id concept-graph-name]))
+              :where [(edge ?s _ _ ?e) [?e :sme/concept-graph ?concept-graph]]}
+            [::dsg/id concept-graph-name]))
 
 (defmethod types/direct-children DatascriptGraph
   [g [b t]]
   (dm/query g
-            '{:find  [?b-filler-id ?t-filler-id]
+            '{:find  [?b-filler ?t-filler]
               :in    [?b ?t ?arg?]
               :where [(edge ?b ?role ?b-filler)
                       (edge ?t ?role ?t-filler)
-                      [?b-filler ::dsg/id ?b-filler-id]
-                      [?t-filler ::dsg/id ?t-filler-id]
                       [?role ::dsg/id ?role-id]
                       [(?arg? ?role-id)]]}
-            [::dsg/id b]
-            [::dsg/id t]
+            b
+            t
             (fn [role] (not (#{"mops" "sme"} (namespace role))))))
 
 (defmethod types/same-functor? DatascriptGraph
@@ -236,9 +214,7 @@
                             [?e ?prop ?attr]
                             [?attr ::dsg/id ?attr-id]
                             [(not= ?prop ::dsg/id)]
-                            #_[(not= ?prop ::dm/to)]
-                            [(not= ?prop ::dm/from)]
-                            #_[(not= ?prop ::dm/label)]]})
+                            [(not= ?prop ::dm/from)]]})
         ((partial
           uv
           :s
