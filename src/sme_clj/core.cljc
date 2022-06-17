@@ -35,13 +35,13 @@
   (:require
    [clojure.math.combinatorics :as comb]
    [clojure.set             :as set]
-   [datascript.core         :as d]
-   #?(:clj [mops.records])
-   [sme-clj.datascript-mops :as ds]
+   [mops.datascript-mops    :as dm]
+   [ont-app.datascript-graph.core :as dsg]
+   [sme-clj.datascript-mops :as sme-dm]
    [sme-clj.ruledef         :as rules]
    [sme-clj.typedef         :as types]
    [taoensso.timbre         :as log])
-  (:import [clojure.lang Atom]))
+  (:import (ont_app.datascript_graph.core DatascriptGraph)))
 
 ;; Note: "mh" = match hypothesis
 
@@ -121,20 +121,24 @@
 (defn consistent?
   "True if an MH is consistent, meaning none of its emaps are in its nogoods."
   [kg children root]
-  (if (instance? Atom kg)
-    (d/q '{:find  [?b ?t]
-           :in    [$ [[?b ?t] ...] [[?b2 ?t2] ...] %]
-           :where [(p? ?b [:mops/id :sme/Expression])
-                   (p? ?t [:mops/id :sme/Expression])
-                   (p? ?b2 [:mops/id :sme/Expression])
-                   (p? ?t2 [:mops/id :sme/Expression])
-                   [(= ?b ?b2)]
-                   [(= ?t ?t2)]
-                   (not [(= ?b ?b2)] [(= ?t ?t2)])]}
-         @kg
-         children
-         children
-         ds/ds-rules)
+  (if (instance? DatascriptGraph kg)
+    (dm/query-with-rules kg
+                         '{:find  [?b-id ?t-id]
+                           :in    [[[?b-id ?t-id] ...] [[?b2-id ?t2-id] ...]]
+                           :where [[?b ::dsg/id ?b-id]
+                                   [?t ::dsg/id ?t-id]
+                                   [?t2 ::dsg/id ?t2-id]
+                                   [?b2 ::dsg/id ?b2-id]
+                                   [(= ?b ?b2)]
+                                   [(= ?t ?t2)]
+                                   (not [(= ?b ?b2)] [(= ?t ?t2)])
+                                   (p? ?b [::dsg/id :sme/Expression])
+                                   (p? ?t [::dsg/id :sme/Expression])
+                                   (p? ?b2 [::dsg/id :sme/Expression])
+                                   (p? ?t2 [::dsg/id :sme/Expression])]}
+                         sme-dm/ds-rules
+                         children
+                         children)
     (let [emaps   (set (all-emaps kg children))
           no-good (set (find-no-good children root))]
       (empty? (set/intersection emaps no-good)))))
@@ -177,27 +181,29 @@
 (defn all-children
   "Returns a set of all descendants of a root."
   [kg [b t :as root]]
-  (if (instance? Atom kg)
-    (d/q
-     '{:find  [?b-child ?t-child]
-       :in    [$ ?b ?t %]
+  (if (instance? DatascriptGraph kg)
+    (dm/query-with-rules
+     kg
+     '{:find  [?b-child-id ?t-child-id]
+       :in    [?b ?t]
        :where [(or-join
                 [?b ?t ?b-child ?t-child]
                 (my-children ?b ?t ?b-child ?t-child)
-                (and [(ground ?b) ?b-child] [(ground ?t) ?t-child]))]}
-     @kg
-     b
-     t
-     '[[(arg? ?role) [(namespace ?role) ?n]]
+                (and [(ground ?b) ?b-child] [(ground ?t) ?t-child]))
+               [?b-child ::dsg/id ?b-child-id]
+               [?t-child ::dsg/id ?t-child-id]]}
+     '[[(arg? ?role) [?role ::dsg/id ?role-id] [(namespace ?role-id) ?n]]
        [(my-children ?b ?t ?b-child ?t-child)
-        [?b ?role ?b-child]
-        [?t ?role ?t-child]
+        (edge ?b ?role ?b-child)
+        (edge ?t ?role ?t-child)
         (not (arg? ?role))]
        [(my-children ?b ?t ?b-child ?t-child)
-        [?b ?role ?bc]
-        [?t ?role ?tc]
+        (edge ?b ?role ?bc)
+        (edge ?t ?role ?tc)
         (not (arg? ?role))
-        (my-children ?bc ?tc ?b-child ?t-child)]])
+        (my-children ?bc ?tc ?b-child ?t-child)]]
+     [::dsg/id b]
+     [::dsg/id t])
     (set (dfs kg root types/direct-children))))
 
 (defn split-into-mhs-sets
@@ -371,7 +377,16 @@
   (let [mh-bases  (set (map first gmap))
         unmatched (set/difference (set (types/expressions kg base-name))
                                   mh-bases)
-        ancestors (set/select #(types/ancestor? kg mh-bases %) unmatched)]
+        ancestors (set/select #(types/ancestor? kg mh-bases %) unmatched)
+        um        (nth (vec unmatched) 3)
+        ea        (mapcat second (types/expression-args kg um))]
+    {:bases mh-bases
+     :um    unmatched
+     :e     (types/expressions kg base-name)
+     :a     ancestors
+     :m     um
+     :ea1   ea
+     :ea    (some #(contains? mh-bases %) ea)}
     (set/difference (set (mapcat (partial types/get-descendants kg) ancestors))
                     mh-bases)))
 
@@ -414,19 +429,23 @@
   ;; the whole inference transferring process for this gmap. Monads would
   ;; perhaps work as well (or CPS).
   (try (let [pairs    (into {} mhs)
-             transfer (fn transfer [expr]
-                        (or (get pairs expr)
-                            (if (types/entity? kg expr)
-                              (throw (ex-info "cannot infer entities"
-                                              {:expr  expr
-                                               :pairs pairs}))
-                              (->> expr
-                                   (types/expression-functor kg)
-                                   (conj (->> expr
-                                              (types/expression-args kg)
-                                              (mapcat second)
-                                              (map transfer)))))))]
-         (assoc gmap :transferred (set (map transfer inferences))))
+             transfer (fn transfer [[role expr]]
+                        [role
+                         (or (get pairs expr)
+                             (if (types/entity? kg expr)
+                               (throw (ex-info "cannot infer entities"
+                                               {:expr  expr
+                                                :pairs pairs}))
+                               (->> expr
+                                    (types/expression-functor kg)
+                                    (conj (for [[role as] (types/expression-args
+                                                           kg
+                                                           expr)
+                                                a         as]
+                                            (transfer [role a]))))))])]
+         (assoc gmap
+                :transferred
+                (set (map (comp second #(transfer [nil %])) inferences))))
        (catch #?(:cljs :default
                  :clj Exception)
          _

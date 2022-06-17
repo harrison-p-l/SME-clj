@@ -58,13 +58,16 @@
 (defmethod types/expression-args DatascriptGraph
   [g k]
   (-> g
-      (dm/query-with-rules '{:find  [?role ?filler]
+      (dm/query-with-rules '{:find  [?role-id ?filler-id]
                              :in    [?e ?arg?]
-                             :where [(p? ?e [:mops/id :sme/Expression])
-                                     [?e ?role ?filler]
-                                     [(?arg? ?role)]]}
+                             :where [(p? ?e [::dsg/id :sme/Expression])
+                                     (edge ?e ?role ?filler)
+                                     [?role ::dsg/id ?role-id]
+                                     [?filler ::dsg/id ?filler-id]
+                                     [?role ::dsg/id ?role-id]
+                                     [(?arg? ?role-id)]]}
                            ds-rules
-                           k
+                           [::dsg/id k]
                            structural-role?)
       (->> (group-by first))
       (#?(:clj update-vals
@@ -85,10 +88,10 @@
 (defmethod types/expression-functor DatascriptGraph
   [g k]
   (dm/query g
-            '{:find  [?f .]
+            '{:find  [?f-id .]
               :in    [?e]
-              :where [[?e :sme/functor ?f]]}
-            k))
+              :where [(edge ?e [::dsg/id :sme/functor] ?f) [?f ::dsg/id ?f-id]]}
+            [::dsg/id k]))
 
 (defmethod types/type-function? DatascriptGraph
   [g k]
@@ -159,7 +162,7 @@
 (defmethod types/initialize-kg DatascriptGraph
   [g]
   (reduce (partial apply types/add-entity)
-          g
+          (dm/def-abstr-role g :mops/parents)
           [[:sme/Expression :thing nil]
            [:sme/Entity :thing nil]
            [:sme/Functor :sme/Expression nil]
@@ -247,16 +250,3 @@
                     (comp (partial into {})
                           (partial remove (comp #{::dm/to ::dm/label} first))
                           (partial map (juxt :prop :attr))))))))))
-
-(-> {}
-    (dm/make-mop-graph)
-    (types/add-concept-graph :simple-water-flow
-      [:cause
-       [:greater [:pressure :Beaker] [:pressure :Vial]]
-       [:flow :Beaker :Vial :Water :Pipe]]
-      [:greater [:diameter :Beaker] [:diameter :Vial]]
-      [:clear :Beaker]
-      [:flat-top :Water]
-      [:liquid :Water])
-    standardize-mops
-    :pressure-Beaker)
