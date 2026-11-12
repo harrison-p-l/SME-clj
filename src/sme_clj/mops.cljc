@@ -24,7 +24,7 @@
     (let [mop (mops/get-mop kg k)]
       (->> mop
            mops/roles
-           (remove #{:concept-graph :functor :parents})
+           (remove #{:concept-graph :functor :mops/parents})
            (map (juxt identity (partial mops/filler-value mop)))))))
 
 (defmethod types/expression-functor MopMap
@@ -47,7 +47,7 @@
                                        (-> args
                                            types/args->slots
                                            (merge slots)))
-                           :parents
+                           :mops/parents
                            parent)]
     (mops/add-mop m mop)))
 
@@ -61,7 +61,7 @@
            (swap! e-map mops/add-mop
              (-> id
                  (mops/->mop {} (types/args->slots function-args))
-                 (mops/add-slot :parents ::types/Expression)
+                 (mops/add-slot :mops/parents ::types/Expression)
                  (mops/add-slot :functor functor)
                  (mops/add-slot :concept-graph concept-graph-id)))
            id))]
@@ -70,7 +70,7 @@
       (mops/add-mop @e-map
                     (-> concept-graph-id
                         (mops/->mop {} {})
-                        (mops/add-slot :parents ::types/ConceptGraph))))))
+                        (mops/add-slot :mops/parents ::types/ConceptGraph))))))
 
 (defmethod types/initialize-kg MopMap
   [m]
@@ -99,7 +99,7 @@
       (->> (filter (comp #{concept-graph-name}
                          first
                          #(mops/filler-value % :concept-graph)))
-           (map (comp :id meta)))))
+           (map (comp :mops/id meta)))))
 
 (defmethod types/direct-children MopMap
   [kg mh]

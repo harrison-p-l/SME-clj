@@ -39,7 +39,7 @@
       (dissoc mop
               :id
               :inst?         :names
-              :concept-graph (when-not include-abstrs? :parents))))
+              :concept-graph (when-not include-abstrs? :mops/parents))))
    (uber/multidigraph)
    (:mops m)))
 
